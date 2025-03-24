@@ -1,0 +1,2884 @@
+---
+title: "Raveendran Honors Thesis Data"
+format:
+  html:
+    toc: true
+    toc-location: left
+output-file: "Raveendran Honors Thesis Data Analysis.html"
+editor: visual
+---
+
+## Overview of the Data Analysis
+
+This project contains data analysis for Rashmi Raveendran's Honors Thesis, "What's Good for the Goose May Not Be Good for the Gander: An Analysis of Cardiovascular Disease Risk Comprehension Among South Asian Americans."
+
+## Introduction and Setup
+
+To begin, the data set was loaded into R using the title 'sacvd' to stand for South Asian Cardiovascular Disease.
+
+```{r}
+#Importing Dataset 
+setwd("C:/Users/RMRAVEE/Desktop/Honors Thesis Data")
+sacvd <- read.csv("DOUBLE TAKE Honors Thesis Final Data Spreadsheet.csv")
+```
+
+Next, various packages and libraries were loaded into R Studio in order to perform analytic tests and run various analysis models on the data.
+
+```{r, warning=FALSE, message=FALSE}
+#Loading libraries 
+options(repos = c(CRAN = "https://cran.r-project.org"))
+install.packages("tidygeocoder", quiet=TRUE)
+library(tidygeocoder)
+if (!require(forcats)) 
+install.packages("forcats", dependencies = TRUE)
+library(forcats)
+install.packages("ggplot2", quiet=TRUE)
+library(ggplot2)
+install.packages("dplyr")
+library(dplyr)
+library(tidyr)
+install.packages('tidyverse')
+library(tidyverse)
+install.packages("gt", dependencies = TRUE)
+install.packages("gtExtras", dependencies = TRUE)
+library(gt)
+library(gtExtras)
+install.packages("ggpubr")
+library(ggpubr)
+install.packages("rmarkdown", dependencies = TRUE)
+library(rmarkdown)
+library(car)
+install.packages("logistf", dependencies = TRUE)
+library(logistf)
+```
+
+The data set was filtered to created a new data set called 'sacvd100' (N=53) which marked all the responses that were noted as 100% complete by Qualtrics. The 'sacvd' data set and 'sacvd100' data sets were later compared to determine if there any notable differences in their distributions.
+
+```{r}
+#Counting # of respondents that have 100% completed marked on Qualtrics 
+sacvd %>%
+  filter(Progress == 100, grepl("United States", Country, ignore.case = TRUE)) %>%
+  nrow()
+#Creating a subset for this population 
+sacvd_us_100 <- sacvd %>%
+  filter(Progress == 100)
+```
+
+## Variable Distributions
+
+The distributions of each variable were produced for either "sacvd" or "sacvd100" to determine which subset of the data set could be used. As both distributions were nearly the same for all variables, the full data set (N=61) "sacvd" was used.
+
+*Age Distribution*
+
+```{r}
+#AGE DISTRIBUTION 
+summary(sacvd_us_100$Age)
+summary(sacvd$Age)
+```
+
+*Sex Distribution*
+
+```{r, warning = FALSE}
+#SEX DISTRIBUTION 
+
+#SACVD100 Sex Distribution 
+ggplot(sacvd_us_100, aes(x = Sex, fill = Sex)) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = ..count..), 
+            vjust = -0.3, color = "black", size = 6, fontface = "bold") +  # Adjust text position & bold
+  labs(
+    title = "Sex Distribution of Respondents in SACVD100", 
+    x = "Sex", 
+    y = "Count"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("darkgray", "lightgray")) +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  
+    axis.title = element_text(size = 16, face = "bold"),  
+    axis.text = element_text(size = 14),  
+    legend.title = element_text(size = 14, face = "bold"), 
+    legend.text = element_text(size = 12)  
+  )
+
+
+#SACVD Sex Distribution 
+ggplot(sacvd, aes(x = Sex, fill = Sex)) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = ..count..), 
+            vjust = -0.3, color = "black", size = 6, fontface = "bold") +  # Adjust text position & bold
+  labs(
+    title = "Sex Distribution of Respondents in SACVD", 
+    x = "Sex", 
+    y = "Count"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("darkgray", "lightgray", "purple")) +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  
+    axis.title = element_text(size = 16, face = "bold"),  
+    axis.text = element_text(size = 14),  
+    legend.title = element_text(size = 14, face = "bold"), 
+    legend.text = element_text(size = 12)  
+  )
+```
+
+*Geographic Distribution of Respondents in the United States*
+
+```{r}
+#GEOGRAPHIC DISTRIBUTION 
+
+#Distribution for SACVD100
+location_counts <- sacvd %>%
+  filter(Progress == 100, grepl("United States", Country, ignore.case = TRUE)) %>%
+  group_by(City, State, Country) %>%
+  summarise(count = n(), .groups = 'drop')
+location_geo <- location_counts %>%
+  mutate(full_address = paste(City, State, Country, sep = ", ")) %>%
+  geocode(address = full_address, method = "osm")
+us_map <- map_data("state")
+ggplot() +
+  geom_polygon(data = us_map, aes(x = long, y = lat, group = group), 
+               fill = "gray80", color = "white") +
+  geom_point(data = location_geo, aes(x = long, y = lat, size = count), 
+             color = "black", alpha = 0.6) +
+  scale_size(range = c(3, 12)) +  
+  labs(
+    title = "Geographic Distribution of SACVD100 Survey Responses",
+    x = "Longitude", y = "Latitude"
+  ) +
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  # Centered, bold, large title
+    axis.title = element_text(size = 14, face = "bold"),  # Larger, bold axis labels
+    axis.text = element_text(size = 12),  # Slightly larger axis text
+    legend.title = element_text(size = 13, face = "bold"),  # Bold legend title
+    legend.text = element_text(size = 11)  # Adjust legend text size
+  )
+
+
+#Distribution for SACVD
+# Group by location for the full dataset (no filtering)
+sacvd_all_counts <- sacvd %>%
+  group_by(City, State, Country) %>%
+  summarise(total_count = n(), .groups = 'drop')
+# Create full address for geocoding
+sacvd_all_geo <- sacvd_all_counts %>%
+  mutate(full_address = paste(City, State, Country, sep = ", ")) %>%
+  geocode(address = full_address, method = "osm")  # OpenStreetMap geocoding
+# Load U.S. map data
+us_map_all <- map_data("state")
+# Create the second plot (for all data points)
+ggplot() +
+  geom_polygon(data = us_map_all, aes(x = long, y = lat, group = group), 
+               fill = "gray80", color = "white") +
+  geom_point(data = sacvd_all_geo, aes(x = long, y = lat, size = total_count), 
+             color = "black", alpha = 0.6) +  # Different color for differentiation
+  scale_size(range = c(3, 12)) +  
+  labs(
+    title = "Geographic Distribution of All SACVD Survey Responses",
+    x = "Longitude", y = "Latitude"
+  ) +
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    legend.title = element_text(size = 13, face = "bold"),  
+    legend.text = element_text(size = 11)  
+  )
+```
+
+*Education Level Distribution*
+
+```{r}
+#HIGHEST DEGREE EARNED DISTRIBUTIONS 
+
+
+#Distribution of highest degree earned for SACVD100
+sacvd_us_100$HighestDegree <- factor(NA, levels=c ("Nursery school to 8th grade", 
+                                                   "High school graduate, diploma or the equivalent (for example: GED)", 
+                                                   "Associate degree", 
+                                                   "Bachelors degree", 
+                                                   "Masters degree", 
+                                                   "Doctorate degree",  
+                                                   "Other", "I do not have a degree or have not completed any level of school"))
+sacvd_us_100$HighestDegree[sacvd_us_100$Highest.Degree.Earned == "Nursery school to 8th grade"] <- "Nursery school to 8th grade"
+sacvd_us_100$HighestDegree[sacvd_us_100$Highest.Degree.Earned == "High school graduate, diploma or the equivalent (for example: GED)"] <- "High school graduate, diploma or the equivalent (for example: GED)"
+sacvd_us_100$HighestDegree[sacvd_us_100$Highest.Degree.Earned == "Associate degree"] <- "Associate degree"
+sacvd_us_100$HighestDegree[sacvd_us_100$Highest.Degree.Earned == "Bachelors degree"] <- "Bachelors degree"
+sacvd_us_100$HighestDegree[sacvd_us_100$Highest.Degree.Earned == "Masters degree"] <- "Masters degree"
+sacvd_us_100$HighestDegree[sacvd_us_100$Highest.Degree.Earned == "Doctorate degree"] <- "Doctorate degree"
+sacvd_us_100$HighestDegree[sacvd_us_100$Highest.Degree.Earned == "Other"] <- "Other"
+sacvd_us_100$HighestDegree[sacvd_us_100$Highest.Degree.Earned == "I do not have a degree or have not completed any level of school"] <- "I do not have a degree or have not completed any level of school"
+degree_counts_df <- as.data.frame(table(sacvd_us_100$HighestDegree))
+ggplot(degree_counts_df, aes(x = reorder(Var1, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(aes(label = Freq), hjust = -0.3, size = 5, fontface = "bold") +
+  labs(
+    title = "Degree Distribution in SACVD100",
+    x = "Degree", 
+    y = "Freq"
+  ) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    panel.grid.major.y = element_blank(),  
+    panel.grid.minor = element_blank()
+  )
+
+
+
+# Distribution of highest degree earned for SACVD
+sacvd$HighestDegree2 <- factor(NA, levels=c("Nursery school to 8th grade", 
+                                            "High school graduate, diploma or the equivalent (for example: GED)", 
+                                            "Associate degree", 
+                                            "Bachelors degree", 
+                                            "Masters degree", 
+                                            "Doctorate degree",  
+                                            "Other", 
+                                            "I do not have a degree or have not completed any level of school"))
+sacvd$HighestDegree2[sacvd$Highest.Degree.Earned == "Nursery school to 8th grade"] <- "Nursery school to 8th grade"
+sacvd$HighestDegree2[sacvd$Highest.Degree.Earned == "High school graduate, diploma or the equivalent (for example: GED)"] <- "High school graduate, diploma or the equivalent (for example: GED)"
+sacvd$HighestDegree2[sacvd$Highest.Degree.Earned == "Associate degree"] <- "Associate degree"
+sacvd$HighestDegree2[sacvd$Highest.Degree.Earned == "Bachelors degree"] <- "Bachelors degree"
+sacvd$HighestDegree2[sacvd$Highest.Degree.Earned == "Masters degree"] <- "Masters degree"
+sacvd$HighestDegree2[sacvd$Highest.Degree.Earned == "Doctorate degree"] <- "Doctorate degree"
+sacvd$HighestDegree2[sacvd$Highest.Degree.Earned == "Other"] <- "Other"
+sacvd$HighestDegree2[sacvd$Highest.Degree.Earned == "I do not have a degree or have not completed any level of school"] <- "I do not have a degree or have not completed any level of school"
+degree_counts2_df <- as.data.frame(table(sacvd$HighestDegree2))
+ggplot(degree_counts2_df, aes(x = reorder(Var1, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(aes(label = Freq), hjust = -0.3, size = 5, fontface = "bold") +
+  labs(
+    title = "Degree Distribution in SACVD",
+    x = "Degree", 
+    y = "Freq"
+  ) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    panel.grid.major.y = element_blank(),  
+    panel.grid.minor = element_blank()
+  )
+```
+
+*Religious Affiliation Distribution*
+
+```{r}
+#RELIGIOUS DISTRIBUTIONS 
+
+#Distribution by religion for SACVD100 
+sacvd_us_100$Religion2 <- factor(NA, levels=c ("Christianity", "Islam", "Hinduism", "Buddhism", "Folk religions", "Other", "No religious affiliation"))
+sacvd_us_100$Religion2[sacvd_us_100$Religion == "Christianity"] <- "Christianity"
+sacvd_us_100$Religion2[sacvd_us_100$Religion == "Islam"] <- "Islam"
+sacvd_us_100$Religion2[sacvd_us_100$Religion == "Hinduism"] <- "Hinduism"
+sacvd_us_100$Religion2[sacvd_us_100$Religion == "Buddhism"] <- "Buddhism"
+sacvd_us_100$Religion2[sacvd_us_100$Religion == "Folk religions"] <- "Folk religions"
+sacvd_us_100$Religion2[sacvd_us_100$Religion == "Other"] <- "Other"
+sacvd_us_100$Religion2[sacvd_us_100$Religion == "No religious affiliation"] <- "No religious affiliation"
+religion_counts2_df <- as.data.frame(table(sacvd_us_100$Religion2))
+ggplot(religion_counts2_df, aes(x = reorder(Var1, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(aes(label = Freq), hjust = -0.3, size = 5, fontface = "bold") +
+  labs(
+    title = "Religion Distribution in SACVD100",
+    x = "Religion", 
+    y = "Freq"
+  ) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    panel.grid.major.y = element_blank(),  
+    panel.grid.minor = element_blank()
+  )
+
+
+#Distribution by religion for SACVD 
+sacvd$Religion3 <- factor(NA, levels=c ("Christianity", "Islam", "Hinduism", "Buddhism", "Folk religions", "Other", "No religious affiliation"))
+sacvd$Religion3[sacvd$Religion == "Christianity"] <- "Christianity"
+sacvd$Religion3[sacvd$Religion == "Islam"] <- "Islam"
+sacvd$Religion3[sacvd$Religion == "Hinduism"] <- "Hinduism"
+sacvd$Religion3[sacvd$Religion == "Buddhism"] <- "Buddhism"
+sacvd$Religion3[sacvd$Religion == "Folk religions"] <- "Folk religions"
+sacvd$Religion3[sacvd$Religion == "Other"] <- "Other"
+sacvd$Religion3[sacvd$Religion == "No religious affiliation"] <- "No religious affiliation"
+religion_counts3_df <- as.data.frame(table(sacvd$Religion3))
+ggplot(religion_counts3_df, aes(x = reorder(Var1, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(aes(label = Freq), hjust = -0.3, size = 5, fontface = "bold") +
+  labs(
+    title = "Religion Distribution in SACVD",
+    x = "Religion", 
+    y = "Freq"
+  ) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    panel.grid.major.y = element_blank(),  
+    panel.grid.minor = element_blank()
+  )
+```
+
+*Employment Distribution*
+
+```{r, warning = FALSE}
+#EMPLOYMENT DISTRIBUTIONS 
+
+#Distribution for SACVD100 
+sacvd_us_100$Employment1 <- factor(NA, levels=c("Employed for wages", 
+                                                "Self employed", 
+                                                "Out of work and looking for work", 
+                                                "Out of work but not currently looking for work", 
+                                                "A student", 
+                                                "Military", 
+                                                "Retired", 
+                                                "Other", 
+                                                "Unemployed"))
+sacvd_us_100$Employment1[sacvd_us_100$Employment == "Employed for wages"] <- "Employed for wages"
+sacvd_us_100$Employment1[sacvd_us_100$Employment == "Self employed"] <- "Self employed"
+sacvd_us_100$Employment1[sacvd_us_100$Employment == "Out of work and looking for work"] <- "Out of work\nlooking for work"
+sacvd_us_100$Employment1[sacvd_us_100$Employment == "Out of work but not currently looking for work"] <- "Out of work\nnot looking for work"
+sacvd_us_100$Employment1[sacvd_us_100$Employment == "A student"] <- "A student"
+sacvd_us_100$Employment1[sacvd_us_100$Employment == "Military"] <- "Military"
+sacvd_us_100$Employment1[sacvd_us_100$Employment == "Retired"] <- "Retired"
+sacvd_us_100$Employment1[sacvd_us_100$Employment == "Other"] <- "Other"
+sacvd_us_100$Employment1[sacvd_us_100$Employment == "Unemployed"] <- "Unemployed"
+employment_counts1 <- as.data.frame(table(sacvd_us_100$Employment1))
+ggplot(employment_counts1, aes(x = reorder(Var1, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(aes(label = Freq), hjust = -0.3, size = 5, fontface = "bold") +
+  labs(
+    title = "Employment Status of Respondents in SACVD100",
+    x = "Count", 
+    y = "Freq"
+  ) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    panel.grid.major.y = element_blank(),  
+    panel.grid.minor = element_blank()
+  )
+
+
+
+#Distribution for SACVD 
+sacvd$Employment2 <- factor(NA, levels=c("Employed for wages", 
+                                         "Self employed", 
+                                         "Out of work and looking for work", 
+                                         "Out of work but not currently looking for work", 
+                                         "A student", 
+                                         "Military", 
+                                         "Retired", 
+                                         "Other", 
+                                         "Unemployed"))
+sacvd$Employment2[sacvd$Employment == "Employed for wages"] <- "Employed for wages"
+sacvd$Employment2[sacvd$Employment == "Self employed"] <- "Self employed"
+sacvd$Employment2[sacvd$Employment == "Out of work and looking for work"] <- "Out of work\nlooking for work"
+sacvd$Employment2[sacvd$Employment == "Out of work but not currently looking for work"] <- "Out of work\nnot looking for work"
+sacvd$Employment2[sacvd$Employment == "A student"] <- "A student"
+sacvd$Employment2[sacvd$Employment == "Military"] <- "Military"
+sacvd$Employment2[sacvd$Employment == "Retired"] <- "Retired"
+sacvd$Employment2[sacvd$Employment == "Other"] <- "Other"
+sacvd$Employment2[sacvd$Employment == "Unemployed"] <- "Unemployed"
+employment_counts2 <- as.data.frame(table(sacvd$Employment2))
+ggplot(employment_counts2, aes(x = reorder(Var1, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(aes(label = Freq), hjust = -0.3, size = 5, fontface = "bold") +
+  labs(
+    title = "Employment Status of Respondents in SACVD",
+    x = "Count", 
+    y = "Employment Status"
+  ) +
+  coord_flip() +  # Makes the bar chart horizontal
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    panel.grid.major.y = element_blank(),  
+    panel.grid.minor = element_blank()
+  )
+```
+
+*Diet Distribution*
+
+```{r}
+#DIET DISTRIBUTIONS 
+
+
+#Distribution for SACVD100 
+sacvd_us_100$Diet1 <- factor(NA, levels=c("Vegetarian", 
+                                          "Vegan", 
+                                          "Gluten-Free", 
+                                          "Dairy-Free", 
+                                          "Low-Carb", 
+                                          "Keto", 
+                                          "Paleo", 
+                                          "Other", 
+                                          "No specific dietary restrictions"))
+sacvd_us_100$Diet1[sacvd_us_100$Diet == "Vegetarian"] <- "Vegetarian"
+sacvd_us_100$Diet1[sacvd_us_100$Diet == "Vegan"] <- "Vegan"
+sacvd_us_100$Diet1[sacvd_us_100$Diet == "Gluten-Free"] <- "Gluten-Free"
+sacvd_us_100$Diet1[sacvd_us_100$Diet == "Dairy-Free"] <- "Dairy-Free"
+sacvd_us_100$Diet1[sacvd_us_100$Diet == "Low-Carb"] <- "Low-Carb"
+sacvd_us_100$Diet1[sacvd_us_100$Diet == "Keto"] <- "Keto"
+sacvd_us_100$Diet1[sacvd_us_100$Diet == "Paleo"] <- "Paleo"
+sacvd_us_100$Diet1[sacvd_us_100$Diet == "Other"] <- "Other"
+sacvd_us_100$Diet1[sacvd_us_100$Diet == "No specific dietary restrictions"] <- "No specific dietary restrictions"
+diet_counts1 <- as.data.frame(table(sacvd_us_100$Diet1))
+ggplot(diet_counts1, aes(x = reorder(Var1, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(aes(label = Freq), hjust = -0.3, size = 5, fontface = "bold") +
+  labs(
+    title = "Diets of Respondents in SACVD100",
+    x = "Count", 
+    y = "Diet Type"
+  ) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    panel.grid.major.y = element_blank(),  
+    panel.grid.minor = element_blank()
+  )
+
+
+
+#Distribution for SACVD 
+sacvd$Diet2 <- factor(NA, levels=c("Vegetarian", 
+                                   "Vegan", 
+                                   "Gluten-Free", 
+                                   "Dairy-Free", 
+                                   "Low-Carb", 
+                                   "Keto", 
+                                   "Paleo", 
+                                   "Other", 
+                                   "No specific dietary restrictions"))
+sacvd$Diet2[sacvd$Diet == "Vegetarian"] <- "Vegetarian"
+sacvd$Diet2[sacvd$Diet == "Vegan"] <- "Vegan"
+sacvd$Diet2[sacvd$Diet == "Gluten-Free"] <- "Gluten-Free"
+sacvd$Diet2[sacvd$Diet == "Dairy-Free"] <- "Dairy-Free"
+sacvd$Diet2[sacvd$Diet == "Low-Carb"] <- "Low-Carb"
+sacvd$Diet2[sacvd$Diet == "Keto"] <- "Keto"
+sacvd$Diet2[sacvd$Diet == "Paleo"] <- "Paleo"
+sacvd$Diet2[sacvd$Diet == "Other"] <- "Other"
+sacvd$Diet2[sacvd$Diet == "No specific dietary restrictions"] <- "No specific dietary restrictions"
+diet_counts2 <- as.data.frame(table(sacvd$Diet2))
+ggplot(diet_counts2, aes(x = reorder(Var1, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(aes(label = Freq), hjust = -0.3, size = 5, fontface = "bold") +
+  labs(
+    title = "Dietary Preferences of Respondents in SACVD",
+    x = "Count", 
+    y = "Diet Type"
+  ) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    panel.grid.major.y = element_blank(),  
+    panel.grid.minor = element_blank()
+  )
+```
+
+*Immigration Status Distribution*
+
+```{r}
+#IMMIGRATION STATUS DISTRIBUTIONS 
+
+
+#Distribution of SACVD100 
+sacvd_us_100$Immigration.Status1 <- factor(NA, levels=c(
+  "Yes, I immigrated to the U.S. (if yes, please write the country from which you immigrated from)", 
+  "No, I was born in the U.S.", 
+  "No, I do not live in the U.S.", 
+  "Other"
+))
+sacvd_us_100$Immigration.Status1[sacvd_us_100$Immigration.Status == 
+                                   "Yes, I immigrated to the U.S. (if yes, please write the country from which you immigrated from)"] <- 
+  "Yes, I immigrated to the U.S. (if yes, please write the country from which you immigrated from)"
+sacvd_us_100$Immigration.Status1[sacvd_us_100$Immigration.Status == 
+                                   "No, I was born in the U.S."] <- "No, I was born in the U.S."
+sacvd_us_100$Immigration.Status1[sacvd_us_100$Immigration.Status == 
+                                   "No, I do not live in the U.S."] <- "No, I do not live in the U.S."
+sacvd_us_100$Immigration.Status1[sacvd_us_100$Immigration.Status == 
+                                   "Other"] <- "Other"
+immigration_counts1 <- as.data.frame(table(sacvd_us_100$Immigration.Status1))
+
+ggplot(immigration_counts1, aes(x = reorder(Var1, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(aes(label = Freq), hjust = -0.3, size = 5, fontface = "bold") +
+  labs(
+    title = "Immigration Status of Respondents in SACVD100",
+    x = "Status", 
+    y = "Freq"
+  ) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    panel.grid.major.y = element_blank(),  
+    panel.grid.minor = element_blank()
+  )
+
+
+#Distribution of SACVD 
+sacvd$Immigration.Status2 <- factor(NA, levels=c(
+  "Yes, I immigrated to the U.S. (if yes, please write the country from which you immigrated from)", 
+  "No, I was born in the U.S.", 
+  "No, I do not live in the U.S.", 
+  "Other"
+))
+sacvd$Immigration.Status2[sacvd$Immigration.Status == 
+                            "Yes, I immigrated to the U.S. (if yes, please write the country from which you immigrated from)"] <- 
+  "Yes, I immigrated to the U.S. (if yes, please write the country from which you immigrated from)"
+sacvd$Immigration.Status2[sacvd$Immigration.Status == 
+                            "No, I was born in the U.S."] <- "No, I was born in the U.S."
+sacvd$Immigration.Status2[sacvd$Immigration.Status == 
+                            "No, I do not live in the U.S."] <- "No, I do not live in the U.S."
+sacvd$Immigration.Status2[sacvd$Immigration.Status == 
+                            "Other"] <- "Other"
+immigration_counts2 <- as.data.frame(table(sacvd$Immigration.Status2))
+
+ggplot(immigration_counts2, aes(x = reorder(Var1, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(aes(label = Freq), hjust = -0.3, size = 5, fontface = "bold") +
+  labs(
+    title = "Immigration Status of Respondents in SACVD",
+    x = "Status", 
+    y = "Freq"
+  ) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    panel.grid.major.y = element_blank(),  
+    panel.grid.minor = element_blank()
+  )
+```
+
+*Geographic Distribution by South Asian Country of Origin*
+
+```{r}
+#SOUTH ASIAN COUNTRY OF ORIGIN DISTRIBUTION 
+
+
+#Distribution of SACVD100 
+south_asia_countries <- c("India", "Pakistan", "Bangladesh", "Sri Lanka", "Nepal", "Bhutan", "Maldives", "Afghanistan")
+location_counts_sa <- sacvd_us_100 %>%
+  filter(South.Asian.Country.of.Origin %in% south_asia_countries) %>%
+  group_by(South.Asian.Country.of.Origin) %>%
+  summarise(count = n(), .groups = 'drop')
+location_geo_sa <- location_counts_sa %>%
+  mutate(full_address = South.Asian.Country.of.Origin) %>%
+  geocode(address = full_address, method = "osm")
+south_asia_map <- map_data("world") %>%
+  filter(region %in% south_asia_countries)
+ggplot() +
+  geom_polygon(data = south_asia_map, aes(x = long, y = lat, group = group), 
+               fill = "gray80", color = "white") +
+  geom_point(data = location_geo_sa, aes(x = long, y = lat, size = count, color = count), 
+             alpha = 0.8) +
+  scale_size(range = c(3, 15)) +  
+  scale_color_gradient(low = "yellow", high = "red") +
+  labs(
+    title = "Geographic Distribution of South Asian Country of Origin",
+    x = "Longitude", y = "Latitude", color = "Number of Respondents"
+  ) +
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    legend.title = element_text(size = 13, face = "bold"),  
+    legend.text = element_text(size = 11)
+  )
+
+
+#Distribution for SACVD 
+south_asia_countries <- c("India", "Pakistan", "Bangladesh", "Sri Lanka", "Nepal", "Bhutan", "Maldives", "Afghanistan")
+location_counts_sa <- sacvd %>%
+  filter(South.Asian.Country.of.Origin %in% south_asia_countries) %>%
+  group_by(South.Asian.Country.of.Origin) %>%
+  summarise(count = n(), .groups = 'drop')
+location_geo_sa <- location_counts_sa %>%
+  mutate(full_address = South.Asian.Country.of.Origin) %>%
+  geocode(address = full_address, method = "osm")
+south_asia_map <- map_data("world") %>%
+  filter(region %in% south_asia_countries)
+ggplot() +
+  geom_polygon(data = south_asia_map, aes(x = long, y = lat, group = group), 
+               fill = "gray80", color = "white") +
+  geom_point(data = location_geo_sa, aes(x = long, y = lat, size = count, color = count), 
+             alpha = 0.8) +
+  scale_size(range = c(3, 15)) +  
+  scale_color_gradient(low = "yellow", high = "red") +
+  labs(
+    title = "Geographic Distribution of South Asian Country of Origin",
+    x = "Longitude", y = "Latitude",
+    size = "Number of Respondents",
+    color = "Number of Respondents"
+  ) +
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),  
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.text = element_text(size = 12),  
+    legend.title = element_text(size = 13, face = "bold"),  
+    legend.text = element_text(size = 11)
+  )
+```
+
+*Cardiometabolic Disease Status Distribution*
+
+```{r}
+#CARDIOMETABOLIC DISEASE DISTRIBUTION 
+
+
+#Distribution for SACVD100 
+sacvd_us_100$Cardiometabolic.Disease <- as.character(sacvd_us_100$Cardiometabolic.Disease)
+sacvd_us_100$Cardiometabolic.Disease[is.na(sacvd_us_100$Cardiometabolic.Disease)] <- "I don't know"
+sacvd_us_100$Cardiometabolic.Disease <- factor(sacvd_us_100$Cardiometabolic.Disease, 
+                                               levels = c("Yes", "No", "I don't know"))
+
+ggplot(sacvd_us_100, aes(x = Cardiometabolic.Disease, fill = Cardiometabolic.Disease)) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = ..count..), 
+            vjust = -0.3, color = "black", size = 6, fontface = "bold") +
+  labs(
+    title = "Cardiometabolic Disease Status of Respondents", 
+    x = "Cardiometabolic Disease", 
+    y = "Count"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("black", "lightgray", "darkgray")) +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  
+    axis.title = element_text(size = 16, face = "bold"),  
+    axis.text = element_text(size = 14),  
+    legend.title = element_text(size = 14, face = "bold"), 
+    legend.text = element_text(size = 12)  
+  )
+
+
+#Distribution for SACVD 
+sacvd$Cardiometabolic.Disease <- as.character(sacvd$Cardiometabolic.Disease)
+sacvd$Cardiometabolic.Disease[is.na(sacvd$Cardiometabolic.Disease)] <- "I don't know"
+sacvd$Cardiometabolic.Disease <- factor(sacvd$Cardiometabolic.Disease, 
+                                        levels = c("Yes", "No", "I don't know"))
+
+ggplot(sacvd, aes(x = Cardiometabolic.Disease, fill = Cardiometabolic.Disease)) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = ..count..), 
+            vjust = -0.3, color = "black", size = 6, fontface = "bold") +
+  labs(
+    title = "Cardiometabolic Disease Status of Respondents", 
+    x = "Cardiometabolic Disease", 
+    y = "Count"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("black", "lightgray", "darkgray")) +  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  
+    axis.title = element_text(size = 16, face = "bold"),  
+    axis.text = element_text(size = 14),  
+    legend.title = element_text(size = 14, face = "bold"), 
+    legend.text = element_text(size = 12)  
+  )
+```
+
+*Histograms of Quantitative Variables*
+
+```{r}
+hist(sacvd$Age)
+hist(sacvd$SS1)
+hist(sacvd$SS2)
+hist(sacvd$SS3)
+hist(sacvd$SS4)
+hist(sacvd$SS5)
+hist(sacvd$SS6)
+hist(sacvd$SS7)
+hist(sacvd$SS8)
+hist(sacvd$SS9)
+```
+
+## Adjusting Variable Distributions
+
+Various variable distributions needed to be adjusted due to the fact that they are skewed in a way that prioritizes one outcome over several others. Sex was not adjusted as there were sufficient counts for each category that was considered.
+
+***Demographic Variables***
+
+*Religious Distribution (Hinduism vs. Other)*
+
+```{r}
+#Changing distribution of religious variable to be Hindu if else 
+sacvd <- sacvd %>%
+  mutate(Religion3Else = case_when(
+    Religion3 == "Hinduism" ~ "Hinduism",
+    Religion3 %in% c("No Religious Affiliation", "Christianity", "Islam", 
+                     "Other", "Buddhism", "Folk religions") ~ "Other",
+    TRUE ~ NA_character_  # Assigns NA to unexpected values
+  ))
+```
+
+*Highest Degree Earned Distribution (Graduate Degree vs. Bachelors Degree or Lower)*
+
+```{r}
+#Changing distribution of education variable to be graduate and less than graduate 
+sacvd <- sacvd %>%
+  mutate(HighestDegreeElse = case_when(
+    HighestDegree2 %in% c("Masters degree", "Doctorate degree") ~ "Graduate Degree",
+    HighestDegree2 %in% c("Bachelors degree", 
+                         "High school graduate, diploma or the equivalent (for example: GED)", 
+                         "I do not have a degree or have not completed any level of school", 
+                         "Other", "Associate degree", 
+                         "Nursery school to 8th grade") ~ "Bachelors Degree or Lower",
+    TRUE ~ NA_character_  # Assigns NA to unexpected values
+  ))
+```
+
+*Employment Distribution (Employed for Wages vs. Other)*
+
+```{r}
+#Changing employment distribution 
+sacvd <- sacvd %>%
+  mutate(Employment2Else = case_when(
+    Employment2 == "Employed for wages" ~ "Employed for wages",
+    Employment2 %in% c("A student", "Unemployed", "Other", "Retired", 
+                       "Military", "Out of work and looking for work", 
+                       "Out of work but not currently looking for work") ~ "Other",
+    TRUE ~ NA_character_  # Assigns NA to unexpected values
+  ))
+
+```
+
+*Diet Distribution (No specific dietary restrictions vs. Other)*
+
+```{r}
+#Changing diet distribution 
+sacvd <- sacvd %>%
+  mutate(Diet2Else = case_when(
+    Diet2 == "No specific dietary restrictions" ~ "No specific dietary restrictions",
+    Diet2 %in% c("Vegan", "Gluten-Free", "Dairy-Free", "Low-Carb", 
+                 "Keto", "Paleo", "Other") ~ "Other",
+    TRUE ~ NA_character_  # Assigns NA to unexpected values
+  ))
+```
+
+*Immigration Status Distribution (Yes, I immigrated to the U.S. vs. No and Other)*
+
+```{r}
+#Changing immigration status variable 
+sacvd <- sacvd %>%
+  mutate(Immigration.Status2Else = case_when(
+    Immigration.Status2 == "Yes, I immigrated to the U.S. (if yes, please write the country from which you immigrated from)" ~ 
+      "Yes, I immigrated to the U.S.",
+    Immigration.Status2 %in% c("No, I was born in the U.S.", 
+                               "No, I do not live in the U.S.", 
+                               "Other") ~ "No and Other",
+    TRUE ~ NA_character_  # Assigns NA to unexpected values
+  ))
+
+```
+
+*Cardiometabolic Disease Distribution (Correctly assigning NA values as NA)*
+
+```{r}
+sacvd <- sacvd %>%
+  mutate(Cardiometabolic.DiseaseElse = case_when(
+    Cardiometabolic.Disease == "Yes" ~ "Yes",
+    Cardiometabolic.Disease == "No" ~ "No",
+    TRUE ~ NA_character_  # Ensures NA values are properly assigned
+  ))
+```
+
+***Sliding Scale ('SS') Variables***
+
+In order to run a logistic regression and test assumptions, all the sliding scale questions were also converted to be on a scale of 1-6 instead of 0-5.
+
+```{r}
+# Identify all SS# variables
+ss_vars <- c("SS1", "SS2", "SS3", "SS4", "SS5", "SS6", "SS7", "SS8", "SS9")
+
+# Create new variables with +1 added
+sacvd <- sacvd %>%
+  mutate(across(all_of(ss_vars), ~ . + 1, .names = "{.col}_plus1"))
+```
+
+Next, 'SSElse' variables where every variable is reported as "Low" (Scores 1, 2, and 3) and "High" (Scores 4, 5, 6), to create categorical distributions of each variable in case it was needed for further analysis. Each variable was skewed in slightly different ways, but was grouped into the same categories in order to maintain consistency across variables.
+
+```{r}
+#SS1 
+sacvd <- sacvd %>%
+  mutate(SS1Else = case_when(
+    SS1_plus1 %in% c("1", "2", "3") ~ "Low",
+    SS1_plus1 %in% c("4", "5", "6") ~ "High",
+    TRUE ~ NA_character_  # Ensures unexpected values become NA
+  )) 
+sacvd$SS1Else <- as.factor(sacvd$SS1Else)
+
+#SS2
+sacvd <- sacvd %>%
+  mutate(SS2Else = case_when(
+    SS2_plus1 %in% c("1", "2", "3") ~ "Low",
+    SS2_plus1 %in% c("4", "5", "6") ~ "High",
+    TRUE ~ NA_character_  # Ensures unexpected values become NA
+  )) 
+sacvd$SS2Else <- as.factor(sacvd$SS2Else)
+
+#SS3 
+sacvd <- sacvd %>%
+  mutate(SS3Else = case_when(
+    SS3_plus1 %in% c("1", "2", "3") ~ "Low",
+    SS3_plus1 %in% c("4", "5", "6") ~ "High",
+    TRUE ~ NA_character_  # Ensures unexpected values become NA
+  )) 
+sacvd$SS3Else <- as.factor(sacvd$SS3Else)
+
+# SS4 
+sacvd <- sacvd %>%
+  mutate(SS4Else = case_when(
+    SS4_plus1 %in% c("1", "2", "3") ~ "Low",
+    SS4_plus1 %in% c("4", "5", "6") ~ "High",
+    TRUE ~ NA_character_
+  ))
+sacvd$SS4Else <- as.factor(sacvd$SS4Else)
+
+# SS5 
+sacvd <- sacvd %>%
+  mutate(SS5Else = case_when(
+    SS5_plus1 %in% c("1", "2", "3") ~ "Low",
+    SS5_plus1 %in% c("4", "5", "6") ~ "High",
+    TRUE ~ NA_character_
+  ))
+sacvd$SS5Else <- as.factor(sacvd$SS5Else)
+
+# SS6 
+sacvd <- sacvd %>%
+  mutate(SS6Else = case_when(
+    SS6_plus1 %in% c("1", "2", "3") ~ "Low",
+    SS6_plus1 %in% c("4", "5", "6") ~ "High",
+    TRUE ~ NA_character_
+  ))
+sacvd$SS6Else <- as.factor(sacvd$SS6Else)
+
+# SS7 
+sacvd <- sacvd %>%
+  mutate(SS7Else = case_when(
+    SS7_plus1 %in% c("1", "2", "3") ~ "Low",
+    SS7_plus1 %in% c("4", "5", "6") ~ "High",
+    TRUE ~ NA_character_
+  ))
+sacvd$SS7Else <- as.factor(sacvd$SS7Else)
+
+# SS8 
+sacvd <- sacvd %>%
+  mutate(SS8Else = case_when(
+    SS8_plus1 %in% c("1", "2", "3") ~ "Low",
+    SS8_plus1 %in% c("4", "5", "6") ~ "High",
+    TRUE ~ NA_character_
+  ))
+sacvd$SS8Else <- as.factor(sacvd$SS8Else)
+
+# SS9 
+sacvd <- sacvd %>%
+  mutate(SS9Else = case_when(
+    SS9_plus1 %in% c("1", "2", "3") ~ "Low",
+    SS9_plus1 %in% c("4", "5", "6") ~ "High",
+    TRUE ~ NA_character_
+  ))
+sacvd$SS9Else <- as.factor(sacvd$SS9Else)
+```
+
+## Changing True or False Questions to Accuracy Questions
+
+The following step was re-coding the true or false questions into accuracy questions that marked responses as either "correct" or "incorrect." Respondents who answered with "I don't know" were also labeled as "Incorrect" to minimize potential errors in analysis, ensure a binary dependent variable, and because a statement of not knowing the fact is indicative of not being able to answer the question correctly.
+
+*True or False Question Re-coding*
+
+```{r}
+#### TRUE OR FALSE QUESTION RECODING 
+
+# TF1
+sacvd$TF1accuracy <- NA
+sacvd$TF1accuracy[sacvd$TF1 == "FALSE"] <- "Correct"
+sacvd$TF1accuracy[sacvd$TF1 == "TRUE" | is.na(sacvd$TF1)] <- "Incorrect"
+sacvd$TF1accuracy <- factor(sacvd$TF1accuracy, levels = c("Correct", "Incorrect"))
+
+# TF2 
+sacvd$TF2accuracy <- NA
+sacvd$TF2accuracy[sacvd$TF2 == "TRUE"] <- "Correct"
+sacvd$TF2accuracy[sacvd$TF2 == "FALSE" | is.na(sacvd$TF2)] <- "Incorrect"
+sacvd$TF2accuracy <- factor(sacvd$TF2accuracy, levels = c("Correct", "Incorrect"))
+
+# TF3 
+sacvd$TF3accuracy <- NA
+sacvd$TF3accuracy[sacvd$TF3 == "TRUE"] <- "Correct"
+sacvd$TF3accuracy[sacvd$TF3 == "FALSE" | is.na(sacvd$TF3)] <- "Incorrect"
+sacvd$TF3accuracy <- factor(sacvd$TF3accuracy, levels = c("Correct", "Incorrect"))
+
+# TF4 
+sacvd$TF4accuracy <- NA
+sacvd$TF4accuracy[sacvd$TF4 == "FALSE"] <- "Correct"
+sacvd$TF4accuracy[sacvd$TF4 == "TRUE" | is.na(sacvd$TF4)] <- "Incorrect"
+sacvd$TF4accuracy <- factor(sacvd$TF4accuracy, levels = c("Correct", "Incorrect"))
+
+# TF5 
+sacvd$TF5accuracy <- NA
+sacvd$TF5accuracy[sacvd$TF5 == "TRUE"] <- "Correct"
+sacvd$TF5accuracy[sacvd$TF5 == "FALSE" | is.na(sacvd$TF5)] <- "Incorrect"
+sacvd$TF5accuracy <- factor(sacvd$TF5accuracy, levels = c("Correct", "Incorrect"))
+
+# TF6 
+sacvd$TF6accuracy <- NA
+sacvd$TF6accuracy[sacvd$TF6 == "FALSE"] <- "Correct"
+sacvd$TF6accuracy[sacvd$TF6 == "TRUE" | is.na(sacvd$TF6)] <- "Incorrect"
+sacvd$TF6accuracy <- factor(sacvd$TF6accuracy, levels = c("Correct", "Incorrect"))
+
+# TF7
+sacvd$TF7accuracy <- NA
+sacvd$TF7accuracy[sacvd$TF7 == "TRUE"] <- "Correct"
+sacvd$TF7accuracy[sacvd$TF7 == "FALSE" | is.na(sacvd$TF7)] <- "Incorrect"
+sacvd$TF7accuracy <- factor(sacvd$TF7accuracy, levels = c("Correct", "Incorrect"))
+
+# TF8 
+sacvd$TF8accuracy <- NA
+sacvd$TF8accuracy[sacvd$TF8 == "FALSE"] <- "Correct"
+sacvd$TF8accuracy[sacvd$TF8 == "TRUE" | is.na(sacvd$TF8)] <- "Incorrect"
+sacvd$TF8accuracy <- factor(sacvd$TF8accuracy, levels = c("Correct", "Incorrect"))
+
+# TF9 
+sacvd$TF9accuracy <- NA
+sacvd$TF9accuracy[sacvd$TF9 == "FALSE"] <- "Correct"
+sacvd$TF9accuracy[sacvd$TF9 == "TRUE" | is.na(sacvd$TF9)] <- "Incorrect"
+sacvd$TF9accuracy <- factor(sacvd$TF9accuracy, levels = c("Correct", "Incorrect"))
+
+# TF10 
+sacvd$TF10accuracy <- NA
+sacvd$TF10accuracy[sacvd$TF10 == "FALSE"] <- "Correct"
+sacvd$TF10accuracy[sacvd$TF10 == "TRUE" | is.na(sacvd$TF10)] <- "Incorrect"
+sacvd$TF10accuracy <- factor(sacvd$TF10accuracy, levels = c("Correct", "Incorrect"))
+
+# TF11 
+sacvd$TF11accuracy <- NA
+sacvd$TF11accuracy[sacvd$TF11 == "TRUE"] <- "Correct"
+sacvd$TF11accuracy[sacvd$TF11 == "FALSE" | is.na(sacvd$TF11)] <- "Incorrect"
+sacvd$TF11accuracy <- factor(sacvd$TF11accuracy, levels = c("Correct", "Incorrect"))
+
+# TF12
+sacvd$TF12accuracy <- NA
+sacvd$TF12accuracy[sacvd$TF12 == "TRUE"] <- "Correct"
+sacvd$TF12accuracy[sacvd$TF12 == "FALSE" | is.na(sacvd$TF11)] <- "Incorrect"
+sacvd$TF12accuracy <- factor(sacvd$TF12accuracy, levels = c("Correct", "Incorrect"))
+```
+
+*Creating Total Summary Score Variable*
+
+```{r}
+# Create SummaryScore: Percentage of "Correct" responses out of 12
+sacvd <- sacvd %>%
+  mutate(SummaryScore = rowMeans(select(., TF1accuracy:TF12accuracy) == "Correct", na.rm = TRUE) * 100)
+```
+
+*Pie Chart Accuracy Distributions (Chunk 1: Facet Wrap, Chunk 2: Separate Images)*
+
+```{r}
+# Creating a plot of all the outcomes for accuracy
+generate_pie_chart <- function(data, variable, question_number) {
+  df <- as.data.frame(table(data[[variable]]))
+  df$Percentage <- (df$Freq / sum(df$Freq)) * 100
+  
+  ggplot(df, aes(x = "", y = Percentage, fill = Var1)) +
+    geom_bar(stat = "identity", width = 1, color = "black") +
+    coord_polar(theta = "y") +
+    geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+              position = position_stack(vjust = 0.5), size = 10, fontface = "bold") +  # Smaller text
+    labs(
+      title = paste0("Question ", question_number),
+      fill = "Response"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 12),  # Smaller title
+      legend.position = "none",  # Remove individual legends
+      axis.title = element_blank(),
+      axis.text = element_blank(),
+      panel.grid = element_blank()
+    ) +
+    scale_fill_manual(values = c("Correct" = "lightgreen", "Incorrect" = "coral"))  # Removed "Don't Know"
+}
+
+# Generate plots for each question
+tf1_plot <- generate_pie_chart(sacvd, "TF1accuracy", 1)
+tf2_plot <- generate_pie_chart(sacvd, "TF2accuracy", 2)
+tf3_plot <- generate_pie_chart(sacvd, "TF3accuracy", 3)
+tf4_plot <- generate_pie_chart(sacvd, "TF4accuracy", 4)
+tf5_plot <- generate_pie_chart(sacvd, "TF5accuracy", 5)
+tf6_plot <- generate_pie_chart(sacvd, "TF6accuracy", 6)
+tf7_plot <- generate_pie_chart(sacvd, "TF7accuracy", 7)
+tf8_plot <- generate_pie_chart(sacvd, "TF8accuracy", 8)
+tf9_plot <- generate_pie_chart(sacvd, "TF9accuracy", 9)
+tf10_plot <- generate_pie_chart(sacvd, "TF10accuracy", 10)
+tf11_plot <- generate_pie_chart(sacvd, "TF11accuracy", 11)
+tf12_plot <- generate_pie_chart(sacvd, "TF12accuracy", 12)
+
+# Update legend to include only "Correct" and "Incorrect"
+legend_plot <- ggplot(data.frame(x = c(1,2)), aes(x, x, fill = factor(x, labels = c("Correct", "Incorrect")))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("lightgreen", "coral")) +  # Removed "Don't Know"
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 14, face = "bold"),  # Adjust legend size
+        legend.text = element_text(size = 12)) +
+  labs(fill = "Response Type")
+
+# Arrange all plots
+ggarrange(tf1_plot, tf2_plot, tf3_plot, tf4_plot,
+          tf5_plot, tf6_plot, tf7_plot, tf8_plot,
+          tf9_plot, tf10_plot, tf11_plot, tf12_plot,
+          legend_plot,
+          ncol = 4, nrow = 4, heights = c(1, 1, 1, 0.3),
+          widths = c(1, 1, 1, 1.6))  # Increase last column width
+
+# Save the figure
+ggsave("TF Accuracy Pie Charts.png", width = 20, height = 10, dpi = 600, bg = "white")
+```
+
+```{r}
+# Define file path
+output_dir <- "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/"
+
+# Generate and save each pie chart
+ggsave(filename = paste0(output_dir, "pie_chart_TF1accuracy.png"), plot = tf1_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF2accuracy.png"), plot = tf2_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF3accuracy.png"), plot = tf3_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF4accuracy.png"), plot = tf4_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF5accuracy.png"), plot = tf5_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF6accuracy.png"), plot = tf6_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF7accuracy.png"), plot = tf7_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF8accuracy.png"), plot = tf8_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF9accuracy.png"), plot = tf9_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF10accuracy.png"), plot = tf10_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF11accuracy.png"), plot = tf11_plot, width = 5, height = 5, dpi = 300)
+ggsave(filename = paste0(output_dir, "pie_chart_TF12accuracy.png"), plot = tf12_plot, width = 5, height = 5, dpi = 300)
+```
+
+*Making a Table for Accuracy Distribution*
+
+```{r}
+# Create a data frame with text descriptions and image file paths
+df <- data.frame(
+  Question = c(
+    "Question 1 (False): Fat is stored predominantly in the liver for all individuals.",
+    "Question 2 (True): South Asians account for 60 percent of the world's heart disease patients.",
+    "Question 3 (True): Lipoprotein(a) is a type of fat in the body that's a genetically determined risk factor for heart disease and stroke.",
+    "Question 4 (False): South Asians have higher levels of fat that increase heart disease risk compared to Caucasians, but have lower levels of this fat compared to other groups.",
+    "Question 5 (True): South Asians develop coronary artery disease up to 10 years earlier than other racial/ethnic groups, on average.",
+    "Question 6 (False): South Asians often have higher levels of HDL cholesterol than other groups.",
+    "Question 7 (True): A cardiovascular disease risk model helps doctors predict heart disease risk based on health and lifestyle factors.",
+    "Question 8 (False): The research models that U.S. doctors use to predict heart disease risk for patients are the same for all individuals.",
+    "Question 9 (False): The research models that U.S. doctors use to predict heart disease risk are updated annually.",
+    "Question 10 (False): U.S. heart disease risk models are based primarily on data from various racial/ethnic groups.",
+    "Question 11 (True): South Asians tend to have higher levels of abdominal fat compared to other groups.",
+    "Question 12 (True): Shortness of breath is a common symptom of heart disease in South Asians."
+  ),
+  Image = c(
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF1accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF2accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF3accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF4accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF5accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF6accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF7accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF8accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF9accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF10accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF11accuracy.png",
+    "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/pie_chart_TF12accuracy.png"  # Make sure to save and add TF12
+  )
+)
+
+# Create the gt table
+gt_table_accuracy <- df %>%
+  gt() %>%
+  text_transform(
+    locations = cells_body(columns = Image),
+    fn = function(x) {
+      local_image(filename = x, height = 100)  # Adjust height as needed
+    }
+  ) %>%
+  tab_header(
+    title = md("**Table 9. Accuracy for True or False Survey Questions**")
+  ) %>%
+  cols_label(
+    Question = " ",
+    Image = " "
+  ) %>%
+  tab_options(
+    table.width = px(700),
+    column_labels.hidden = TRUE
+  )%>%
+  tab_options(
+    table.font.names = "Times New Roman"  
+  ) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>% 
+  tab_options(source_notes.font.size = 12) %>% 
+  tab_options(
+    table_body.border.bottom.width = 2,
+    table_body.border.bottom.color = "grey"
+) 
+
+# Display the table
+gt_table_accuracy
+
+#Save the table 
+output_path <- "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/accuracy_table.png"
+gtsave(gt_table_accuracy, filename = output_path, vwidth = 8000, vheight = 6000)
+```
+
+## Creating Binary Accuracy Variables
+
+The true or false accuracy variables were also encoded into binary variables to encode "Correct" as 1 and "Incorrect" as 0 into new variables called TFaccuracy#\_num, to assist with further analysis.
+
+```{r}
+# List of specific variables to recode
+accuracy_vars <- c("TF1accuracy", "TF2accuracy", "TF3accuracy", "TF4accuracy", 
+                   "TF5accuracy", "TF6accuracy", "TF7accuracy", "TF8accuracy", 
+                   "TF9accuracy", "TF10accuracy", "TF11accuracy", "TF12accuracy")
+
+# Apply transformation: Create new variables TF#accuracy_num
+sacvd <- sacvd %>%
+  mutate(across(all_of(accuracy_vars), ~ ifelse(. == "Correct", 1, 0), 
+                .names = "{.col}_num"))
+```
+
+The next step was also creating dummy variables for the demographic predictors to assign categories to 0 and 1.
+
+```{r}
+sacvd$Sex <- factor(sacvd$Sex, levels = c("Male", "Female"))  # Male is reference
+sacvd$HighestDegreeElse <- factor(sacvd$HighestDegreeElse, levels = c("Graduate Degree", "Bachelors Degree or Lower"))
+sacvd$Employment2Else <- factor(sacvd$Employment2Else, levels = c("Employed for wages", "Other"))
+sacvd$Diet2Else <- factor(sacvd$Diet2Else, levels = c("No specific dietary restrictions", "Other"))
+sacvd$Religion3Else <- factor(sacvd$Religion3Else, levels = c("Hinduism", "Other"))
+sacvd$Immigration.Status2Else <- factor(sacvd$Immigration.Status2Else, levels = c("Yes, I immigrated to the U.S.", "No and Other"))
+sacvd$Cardiometabolic.DiseaseElse <- factor(sacvd$Cardiometabolic.DiseaseElse, levels = c("Yes", "No"))
+```
+
+## Demographic Tables
+
+Demographic tables were then created to summarize the overall distribution of responses in the data set.
+
+*Categorical Data (Demographic Predictors)*
+
+```{r, warning = FALSE}
+#Creating a demographic table to see the distribution of all results 
+# Define new variable titles
+variable_titles <- c(
+  "Sex" = "Sex",
+  "HighestDegree2" = "Highest Degree Earned",
+  "Employment2" = "Employment Status",
+  "Religion3" = "Religion",
+  "Diet2" = "Diet",
+  "Immigration.Status2" = "Immigration Status",
+  "Cardiometabolic.Disease" = "Presence of Cardiometabolic Disease", 
+  "South.Asian.Country.of.Origin" = "South Asian Country of Origin", 
+  "State" = "United States State of Origin"
+)
+
+# Function to create the demographic table with proper formatting
+create_demographic_table <- function(data, vars, title_map) {
+  demographic_table <- bind_rows(
+    lapply(vars, function(var) {
+      data %>%
+        filter(!is.na(.data[[var]])) %>%  # Remove NAs
+        count(.data[[var]]) %>%
+        mutate(Variable = title_map[var],  # Apply new names
+               Percentage = round((n / sum(n)) * 100, 1)) %>%
+        rename(Category = .data[[var]], Count = n)
+    })
+  ) %>%
+    select(Variable, Category, Count, Percentage) %>%
+    group_by(Variable) %>%
+    mutate(Variable = ifelse(row_number() == 1, Variable, "")) %>%  # Show variable name only once per section
+    ungroup()
+  
+  return(demographic_table)
+}
+
+# List of variable names (use existing column names in sacvd)
+variable_list <- names(variable_titles)
+
+# Generate demographic table with formatted variable names
+demographic_summary <- create_demographic_table(sacvd, variable_list, variable_titles)
+
+demographic_table <- demographic_summary %>% 
+  gt() %>% 
+      tab_header(
+    title = 'Demographic Distribution of Data for Categorical Variables',
+  )%>%
+  tab_options(
+    heading.title.font.size = px(40),  # Increase title font size
+    heading.title.font.weight = "bold"  # Keep it bold
+  ) %>%
+    cols_align(
+    align = "center",
+    columns = where(is.numeric)  # Centers only numeric columns (Count & Percentage)
+  ) %>%
+  cols_align(
+    align = "left",
+    columns = c(Variable, Category)  # Left-aligns text columns
+  ) %>%
+    cols_width(
+    Variable ~ px(200),   # Adjust Variable column width
+    Category ~ px(900),   # Make Category column wider
+    Count ~ px(100),      # Keep Count column compact
+    Percentage ~ px(120)  # Keep Percentage readable
+  ) %>%
+    tab_style(
+    style = list(
+      cell_fill(color = "lightblue"),  # Set background color
+      cell_text(weight = "bold", color = "black")  # Make text bold
+    ),
+    locations = cells_body(
+      columns = Variable,  # Apply to Variable column
+      rows = Variable != ""  # Only color rows where the Variable is not empty
+    )
+  ) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>% 
+  tab_options(source_notes.font.size = 12) %>% 
+  tab_options(
+    table_body.border.bottom.width = 2,
+    table_body.border.bottom.color = "grey", 
+    table.width = px(800)
+) %>%
+  tab_options(
+    table.font.names = "Times New Roman"  # Set font to Times New Roman
+  ) 
+
+gtsave(demographic_table, "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/demographics_table.png", vwidth = 3000, vheight = 900)
+```
+
+*Quantitative Data ('SS' Predictors and Age)*
+
+```{r}
+# Create a summary table for quantitative variables
+summary_table <- sacvd %>%
+  summarise(
+    Age_Mean = round(mean(Age, na.rm=TRUE), 1),
+    Age_Median = round(median(Age, na.rm=TRUE), 1),
+    Age_SD = round(sd(Age, na.rm=TRUE), 1),
+    Age_Min = min(Age, na.rm=TRUE),
+    Age_Max = max(Age, na.rm=TRUE),
+    
+    SummaryScore_Mean = round(mean(SummaryScore, na.rm=TRUE), 1),
+    SummaryScore_Median = round(median(SummaryScore, na.rm=TRUE), 1),
+    SummaryScore_SD = round(sd(SummaryScore, na.rm=TRUE), 1),
+    SummaryScore_Min = min(SummaryScore, na.rm=TRUE),
+    SummaryScore_Max = max(SummaryScore, na.rm=TRUE),
+    
+    SS1_Mean = round(mean(SS1_plus1, na.rm=TRUE), 1),
+    SS1_Median = round(median(SS1_plus1, na.rm=TRUE), 1),
+    SS1_SD = round(sd(SS1_plus1, na.rm=TRUE), 1),
+    SS1_Min = min(SS1_plus1, na.rm=TRUE),
+    SS1_Max = max(SS1_plus1, na.rm=TRUE),
+    
+    SS2_Mean = round(mean(SS2_plus1, na.rm=TRUE), 1),
+    SS2_Median = round(median(SS2_plus1, na.rm=TRUE), 1),
+    SS2_SD = round(sd(SS2_plus1, na.rm=TRUE), 1),
+    SS2_Min = min(SS2_plus1, na.rm=TRUE),
+    SS2_Max = max(SS2_plus1, na.rm=TRUE),
+    
+    SS3_Mean = round(mean(SS3_plus1, na.rm=TRUE), 1),
+    SS3_Median = round(median(SS3_plus1, na.rm=TRUE), 1),
+    SS3_SD = round(sd(SS3_plus1, na.rm=TRUE), 1),
+    SS3_Min = min(SS3_plus1, na.rm=TRUE),
+    SS3_Max = max(SS3_plus1, na.rm=TRUE),
+    
+    SS4_Mean = round(mean(SS4_plus1, na.rm=TRUE), 1),
+    SS4_Median = round(median(SS4_plus1, na.rm=TRUE), 1),
+    SS4_SD = round(sd(SS4_plus1, na.rm=TRUE), 1),
+    SS4_Min = min(SS4_plus1, na.rm=TRUE),
+    SS4_Max = max(SS4_plus1, na.rm=TRUE),
+    
+    SS5_Mean = round(mean(SS5_plus1, na.rm=TRUE), 1),
+    SS5_Median = round(median(SS5_plus1, na.rm=TRUE), 1),
+    SS5_SD = round(sd(SS5_plus1, na.rm=TRUE), 1),
+    SS5_Min = min(SS5_plus1, na.rm=TRUE),
+    SS5_Max = max(SS5_plus1, na.rm=TRUE),
+    
+    SS6_Mean = round(mean(SS6_plus1, na.rm=TRUE), 1),
+    SS6_Median = round(median(SS6_plus1, na.rm=TRUE), 1),
+    SS6_SD = round(sd(SS6_plus1, na.rm=TRUE), 1),
+    SS6_Min = min(SS6_plus1, na.rm=TRUE),
+    SS6_Max = max(SS6_plus1, na.rm=TRUE),
+    
+    SS7_Mean = round(mean(SS7_plus1, na.rm=TRUE), 1),
+    SS7_Median = round(median(SS7_plus1, na.rm=TRUE), 1),
+    SS7_SD = round(sd(SS7_plus1, na.rm=TRUE), 1),
+    SS7_Min = min(SS7_plus1, na.rm=TRUE),
+    SS7_Max = max(SS7_plus1, na.rm=TRUE),
+    
+    SS8_Mean = round(mean(SS8_plus1, na.rm=TRUE), 1),
+    SS8_Median = round(median(SS8_plus1, na.rm=TRUE), 1),
+    SS8_SD = round(sd(SS8_plus1, na.rm=TRUE), 1),
+    SS8_Min = min(SS8_plus1, na.rm=TRUE),
+    SS8_Max = max(SS8_plus1, na.rm=TRUE),
+    
+    SS9_Mean = round(mean(SS9_plus1, na.rm=TRUE), 1),
+    SS9_Median = round(median(SS9_plus1, na.rm=TRUE), 1),
+    SS9_SD = round(sd(SS9_plus1, na.rm=TRUE), 1),
+    SS9_Min = min(SS9_plus1, na.rm=TRUE),
+    SS9_Max = max(SS9_plus1, na.rm=TRUE)
+  ) %>%
+  pivot_longer(cols = everything(), names_to = "Statistic", values_to = "Value") %>%
+  separate(Statistic, into = c("Variable", "Stat"), sep = "_") %>%
+  pivot_wider(names_from = Stat, values_from = Value)
+
+summary_table <- summary_table %>%
+  mutate(Variable = case_when(
+    Variable == "SummaryScore" ~ "Summary Score",
+    Variable == "SS1" ~ "Connection to South Asian Identity",
+    Variable == "SS2" ~ "Religosity",
+    Variable == "SS3" ~ "Regular Consumption of South Asian Typical Diet",
+    Variable == "SS4" ~ "Regular Thought About Heart Health",
+    Variable == "SS5" ~ "Trust in Healthcare Providers",
+    Variable == "SS6" ~ "Knowledge of MASALA",
+    Variable == "SS7" ~ "Knowledge of Policy Changes",
+    Variable == "SS8" ~ "Regular Social Media Use",
+    Variable == "SS9" ~ "Confidence in Survey Accuracy",
+    TRUE ~ Variable  # Keeps any other variables unchanged
+  ))
+
+# Print the summary table
+summary_table_quant <- summary_table %>%
+  gt() %>%
+  tab_header(title = 'Descriptive Statistics for Quantitative Variables') %>%
+  cols_label(Variable = "Variable Name", Mean = "Mean", Median = "Median", SD = "Standard Deviation", Min = "Min", Max = "Max") %>%
+  cols_align(align = "left") %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>% 
+  tab_options(source_notes.font.size = 12) %>% 
+  tab_options(
+    table_body.border.bottom.width = 2,
+    table_body.border.bottom.color = "grey", 
+    table.width = px(800)
+)%>%
+  fmt_number(columns = where(is.numeric), decimals = 0) %>%
+  tab_options(
+    table.font.names = "Times New Roman"  # Set font to Times New Roman
+  ) 
+
+gtsave(summary_table_quant, "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/demographics_table_quant.png", vwidth = 4000, vheight = 200)
+```
+
+## Logistic Regression - Testing Assumptions to Run Tests Between Variables
+
+***1) Checking for Multicollinearity***
+
+The first assumption to test was assessing if multicollinearity was present among any of the predictor variables. If a VIF value was greater than 5, this indicated a potential assumption violation. The 'SS' variables and Age were tested first and separately from the other demographic predictors to the respective nature of each of the variables (numerical variables versus binary variables).
+
+*SS Variables and Age*
+
+```{r}
+# List of TF accuracy numeric variables
+tf_accuracy_vars <- c("TF1accuracy_num", "TF2accuracy_num", "TF3accuracy_num", 
+                      "TF4accuracy_num", "TF5accuracy_num", "TF6accuracy_num", 
+                      "TF7accuracy_num", "TF8accuracy_num", "TF9accuracy_num", 
+                      "TF10accuracy_num", "TF11accuracy_num", "TF12accuracy_num")
+
+# Run logistic regression and calculate VIF for each TF#accuracy_num variable
+for (tf_var in tf_accuracy_vars) {
+  model <- glm(as.formula(paste(tf_var, "~ Age + SS1_plus1 + SS2_plus1 + SS3_plus1 + SS4_plus1 + SS5_plus1 + SS6_plus1 + SS7_plus1 + SS8_plus1 + SS9_plus1")), 
+               data = sacvd, family = binomial)
+  
+  vif_values <- vif(model)
+  
+  print(paste("VIF for model:", tf_var))
+  print(vif_values)
+  cat("\n---------------------------------\n")
+}
+```
+
+The only VIF variable greater than 5 was between SS2 predicting TF7 (VIF = 7.378184). The relationship between SS2 and TF7 was later found to be insignificant.
+
+*Demographic Predictors*
+
+```{r}
+# List of TF accuracy numeric variables
+tf_accuracy_vars <- c("TF1accuracy_num", "TF2accuracy_num", "TF3accuracy_num", 
+                      "TF4accuracy_num", "TF5accuracy_num", "TF6accuracy_num", 
+                      "TF7accuracy_num", "TF8accuracy_num", "TF9accuracy_num", 
+                      "TF10accuracy_num", "TF11accuracy_num", "TF12accuracy_num")
+
+# Run logistic regression and calculate VIF for each TF#accuracy_num variable
+for (tf_var in tf_accuracy_vars) {
+  model <- glm(as.formula(paste(tf_var, "~ Sex + HighestDegreeElse + Employment2Else + Diet2Else + Religion3Else + Immigration.Status2Else + Cardiometabolic.DiseaseElse")), 
+               data = sacvd, family = binomial)
+  
+  vif_values <- vif(model)
+  
+  print(paste("VIF for model:", tf_var))
+  print(vif_values)
+  cat("\n---------------------------------\n")
+}
+```
+
+Many predictors co-vary and have VIF values greater than 5. None of the predictors were found to be significant predictors of accuracy on their own in later un-adjusted models, but did present the issue of co-variation with other 'SS' variables in fully adjusted models.
+
+***2) Checking for Linearity of Log-Odds of 'SS' Variables and Age***
+
+In logistic regression, the linearity assumption states that the log-odds of the outcome are linearly related to continuous predictors. If the relationship is non-linear, including a log-transformed term can capture that non-linearity. This is indicated when the p-value is less than 0.05 for the log-odds predictor. The demographic predictor variables, which were labeled as binary, were excluded from the linearity assessment as the linearity assumption applies to continuous variables. The binary, demographic variables inherently meet this assumption and do not require transformation or testing for linearity in the logit.
+
+First we ran test the un-adjusted models, which just include each singular 'SS' Predictor variable and Age. Several relationships that were later found to be significant did demonstrate significance in both the log model and the standard variable, so these relationships were noted for consideration in further analysis.
+
+```{r}
+# List of TF accuracy numeric variables
+tf_accuracy_vars <- paste0("TF", 1:12, "accuracy_num")
+
+# List of SS predictors
+ss_predictors <- paste0("SS", 1:9, "_plus1")
+
+# Create an empty list to store significant results
+individual_sig_results <- list()
+
+# Loop through each TF accuracy variable
+for (tf_var in tf_accuracy_vars) {
+  
+  # Loop through each SS predictor
+  for (ss_var in ss_predictors) {
+    
+    # Model with SS predictor + Age
+    glm_model_ss <- glm(as.formula(paste(tf_var, "~", ss_var, "+ Age")), 
+                        data = sacvd, 
+                        family = binomial)
+    
+    # Extract summary and significance
+    model_summary_ss <- summary(glm_model_ss)
+    coef_table_ss <- model_summary_ss$coefficients
+    sig_vars_ss <- coef_table_ss[, 4] < 0.05 & rownames(coef_table_ss) != "(Intercept)"  # Exclude Intercept
+    
+    if (any(sig_vars_ss)) {
+      OR_table_ss <- exp(coef_table_ss[sig_vars_ss, 1])
+      CI_lower_ss <- exp(coef_table_ss[sig_vars_ss, 1] - 1.96 * coef_table_ss[sig_vars_ss, 2])
+      CI_upper_ss <- exp(coef_table_ss[sig_vars_ss, 1] + 1.96 * coef_table_ss[sig_vars_ss, 2])
+      
+      sig_results_ss <- data.frame(
+        TF_Accuracy = tf_var,
+        Variable = rownames(coef_table_ss)[sig_vars_ss],
+        Coefficient = coef_table_ss[sig_vars_ss, 1],
+        Odds_Ratio = OR_table_ss,
+        CI_Lower = CI_lower_ss,
+        CI_Upper = CI_upper_ss,
+        P_Value = coef_table_ss[sig_vars_ss, 4]
+      )
+      
+      individual_sig_results[[paste(tf_var, ss_var, "raw_with_Age", sep = "_")]] <- sig_results_ss
+    }
+    
+    # Model with log-transformed SS predictor + Age
+    glm_model_log <- glm(as.formula(paste(tf_var, "~ log(", ss_var, ") + Age")), 
+                         data = sacvd, 
+                         family = binomial)
+    
+    # Extract summary and significance
+    model_summary_log <- summary(glm_model_log)
+    coef_table_log <- model_summary_log$coefficients
+    sig_vars_log <- coef_table_log[, 4] < 0.05 & rownames(coef_table_log) != "(Intercept)"  # Exclude Intercept
+    
+    if (any(sig_vars_log)) {
+      OR_table_log <- exp(coef_table_log[sig_vars_log, 1])
+      CI_lower_log <- exp(coef_table_log[sig_vars_log, 1] - 1.96 * coef_table_log[sig_vars_log, 2])
+      CI_upper_log <- exp(coef_table_log[sig_vars_log, 1] + 1.96 * coef_table_log[sig_vars_log, 2])
+      
+      sig_results_log <- data.frame(
+        TF_Accuracy = tf_var,
+        Variable = rownames(coef_table_log)[sig_vars_log],
+        Coefficient = coef_table_log[sig_vars_log, 1],
+        Odds_Ratio = OR_table_log,
+        CI_Lower = CI_lower_log,
+        CI_Upper = CI_upper_log,
+        P_Value = coef_table_log[sig_vars_log, 4]
+      )
+      
+      individual_sig_results[[paste(tf_var, ss_var, "log_with_Age", sep = "_")]] <- sig_results_log
+    }
+  }
+}
+
+# Combine all significant results into a single dataframe
+individual_significant_results_df <- do.call(rbind, individual_sig_results)
+
+# Clean TF_Accuracy column to show "Question #" instead of "TF#accuracy_num"
+individual_significant_results_df$TF_Accuracy <- gsub("TF([0-9]+)accuracy_num", "Question \\1", individual_significant_results_df$TF_Accuracy)
+
+# Reorder columns to have Predictor first, then Question
+individual_significant_results_df <- individual_significant_results_df[, c("Variable", "TF_Accuracy", "Coefficient", "Odds_Ratio", "CI_Lower", "CI_Upper", "P_Value")]
+
+# Create the gt table with updated order and labeling
+gt_table_individual <- individual_significant_results_df %>%
+  gt() %>%
+  tab_header(
+    title = 'Linearity Assumption Test: Unadjusted Model'
+  ) %>%
+  cols_label(
+    Variable = "Predictor (SS or Age)",
+    TF_Accuracy = "True/False Question",
+    Coefficient = "Coefficient",
+    Odds_Ratio = "Odds Ratio",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)",
+    P_Value = "P-Value"
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = where(is.numeric)
+  ) %>%
+  fmt_number(columns = where(is.numeric), decimals = 3) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(source_notes.font.size = 9) %>%
+  tab_options(
+    table_body.border.bottom.width = 2,
+    table_body.border.bottom.color = "grey"
+  ) %>%
+  tab_options(
+    table.font.names = "Times New Roman"
+  )
+
+# Save the table as an image
+gtsave(gt_table_individual, "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/gt_table_individual.png", vwidth = 4000, vheight = 200)
+```
+
+Next, we ran the same test but as a fully-adjusted model which includes all the 'SS' Predictor variables and Age in one model. Only the relationship between SS6 and TF1 was found to violate the assumption, which was found to later be an insignificant relationship regardless.
+
+```{r, warning = FALSE}
+# List of TF accuracy numeric variables
+tf_accuracy_vars <- paste0("TF", 1:12, "accuracy_num")
+
+# Create an empty list to store significant results
+significant_results <- list()
+
+# Loop through each TF accuracy variable
+for (tf_var in tf_accuracy_vars) {
+  
+  # Run logistic regression model
+glm_model <- glm(as.formula(paste(tf_var, "~", 
+                                  paste0("SS", 1:9, "_plus1 + log(SS", 1:9, "_plus1)", collapse = " + "),
+                                  " + Age")), 
+                 data = sacvd, 
+                 family = binomial)
+  
+  # Extract model summary
+  model_summary <- summary(glm_model)
+  
+  # Extract coefficients, standard errors, and p-values
+  coef_table <- model_summary$coefficients
+  sig_vars <- coef_table[, 4] < 0.05  # Identify significant variables (p < 0.05)
+  
+  if (any(sig_vars)) {  # If there are significant variables
+    
+    OR_table <- exp(coef_table[sig_vars, 1])  # Convert to odds ratios
+    CI_lower <- exp(coef_table[sig_vars, 1] - 1.96 * coef_table[sig_vars, 2])  # 95% CI Lower
+    CI_upper <- exp(coef_table[sig_vars, 1] + 1.96 * coef_table[sig_vars, 2])  # 95% CI Upper
+    
+    # Create a results dataframe
+    sig_results <- data.frame(
+      TF_Accuracy = tf_var,
+      Variable = rownames(coef_table)[sig_vars],
+      Coefficient = coef_table[sig_vars, 1],  # Include Coefficient
+      Odds_Ratio = OR_table,
+      CI_Lower = CI_lower,
+      CI_Upper = CI_upper,
+      P_Value = coef_table[sig_vars, 4]
+    )
+    
+    # Store in list
+    significant_results[[tf_var]] <- sig_results
+  }
+}
+
+# Combine all results into a single dataframe
+significant_results_df <- do.call(rbind, significant_results)
+
+# Clean TF_Accuracy column: change "TF#accuracy_num" to "Question #"
+significant_results_df$TF_Accuracy <- gsub("TF([0-9]+)accuracy_num", "Question \\1", significant_results_df$TF_Accuracy)
+
+# Update SS6_plus1 to "Knowledge of MASALA (SS6)"
+significant_results_df$Variable <- ifelse(significant_results_df$Variable == "SS6_plus1",
+                                          "Knowledge of MASALA (SS6)",
+                                          significant_results_df$Variable)
+
+# Reorder columns: Predictor first, then Question
+significant_results_df <- significant_results_df[, c("Variable", "TF_Accuracy", "Coefficient", "Odds_Ratio", "CI_Lower", "CI_Upper", "P_Value")]
+
+# Create the gt table for only significant results with updated labels
+gt_table_linearity <- significant_results_df %>%
+  gt() %>%
+  tab_header(
+    title = 'Linearity Assumption Test: Fully Adjusted Model'
+  ) %>%
+  cols_label(
+    Variable = "Sliding Scale Predictor",
+    TF_Accuracy = "Question #",
+    Coefficient = "Coefficient",
+    Odds_Ratio = "Odds Ratio",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)",
+    P_Value = "P-Value"
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = where(is.numeric)
+  ) %>%
+  fmt_number(columns = where(is.numeric), decimals = 3) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(source_notes.font.size = 9) %>%
+  tab_options(
+    table_body.border.bottom.width = 2,
+    table_body.border.bottom.color = "grey"
+  ) %>%
+  tab_options(
+    table.font.names = "Times New Roman"
+  )
+
+# Save the updated table as an image
+gtsave(gt_table_linearity, "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/gt_table_linearity.png", vwidth = 4000, vheight = 200)
+```
+
+***3) Checking for Outliers Using the Cook's Test***
+
+The final assumption tested was the Cook's test to detect potential outliers. Cook's distance was only assessed for numerical, continuous predictors as the binary, demographic variables inherently have minimal variability and are less prone to exert undue influence on model estimates.
+
+Per common practice, the Cook's test was only tested on the fully adjusted model with all 'SS' variable predictors and Age, as the Cook's Distance is designed for multi-variable models where multiple predictors can create leverage or interaction effects that influence estimates.
+
+```{r}
+for (tf_var in tf_accuracy_vars) {
+  # Build the full formula string correctly
+  formula_str <- paste(tf_var, "~ Age + SS1_plus1 + SS2_plus1 + SS3_plus1 + SS4_plus1 + SS5_plus1 + SS6_plus1 + SS7_plus1 + SS8_plus1 + SS9_plus1")
+  
+  # Run logistic regression model
+  glm_model <- glm(as.formula(formula_str), data = sacvd, family = binomial)
+  
+  # Calculate Cook’s Distance
+  cooksd <- cooks.distance(glm_model)
+  high_influence <- which(cooksd > 1)
+  
+  cat("\n----------------------------------------\n")
+  print(paste("Cook’s Distance Test for:", tf_var))
+  cat("----------------------------------------\n")
+  print(summary(cooksd))
+  
+  if (length(high_influence) == 0) {
+    print("No influential observations detected (Cook's D < 1 for all cases).")
+  } else {
+    print(paste("Observations with high influence:", toString(high_influence)))
+  }
+}
+```
+
+Based on the outcomes of the Cook's tests, variables that indicated outliers were noted to be considered in future analysis (true or false questions 4 and 10).
+
+## Logistic Regression and Chi-square/Fisher's Tests Between Variables
+
+***1) SS + Age Variables - Un-adjusted Results***
+
+Logistic Regression of Each SS Variable with Each TF Question Individually
+
+```{r, message = FALSE}
+# Initialize a list to store significant results
+sig_logistic_results <- list()
+
+# Outer loop: SS predictors plus Age
+for (predictor in c(paste0("SS", 1:9, "_plus1"), "Age")) {
+  
+  # Inner loop: TF outcome variables
+  for (tf_num in 1:12) {
+    outcome <- paste0("TF", tf_num, "accuracy_num")
+    
+    # Run logistic regression
+    formula <- as.formula(paste(outcome, "~", predictor))
+    model <- glm(formula, data = sacvd, family = binomial)
+    
+    # Extract coefficient summary
+    coef_summary <- summary(model)$coefficients
+    
+    # Check if predictor is in the model and significant
+    if (predictor %in% rownames(coef_summary)) {
+      estimate <- coef_summary[predictor, "Estimate"]
+      p_value <- coef_summary[predictor, "Pr(>|z|)"]
+      
+      # Store only significant results
+      if (p_value < 0.05) {
+        odds_ratio <- exp(estimate)
+        ci <- exp(confint(model)[predictor, ])
+        
+        sig_logistic_results[[length(sig_logistic_results) + 1]] <- data.frame(
+          Predictor = predictor,
+          TF_Accuracy = outcome,
+          Coefficient = estimate,
+          Odds_Ratio = odds_ratio,
+          CI_Lower = ci[1],
+          CI_Upper = ci[2],
+          P_Value = p_value
+        )
+      }
+    }
+  }
+}
+
+# Combine all significant results
+sig_results_df <- do.call(rbind, sig_logistic_results)
+
+# Create GT table with Times New Roman font
+sig_results_gt <- sig_results_df %>%
+  gt() %>%
+  tab_header(title = "Significant Logistic Regression Results (p < 0.05)") %>%
+  cols_label(
+    Predictor = "Predictor Variable",
+    TF_Accuracy = "True or False Question",
+    Coefficient = "Coefficient",
+    Odds_Ratio = "Odds Ratio",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)",
+    P_Value = "P-Value"
+  ) %>%
+  fmt_number(columns = c(Coefficient, Odds_Ratio, CI_Lower, CI_Upper, P_Value), decimals = 3) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(table.font.names = "Times New Roman")
+
+sig_results_gt
+
+#CREATE TABLE FOR THESIS 
+# Load your existing significant results table
+sig_results <- data.frame(
+  SS_Predictor = c("SS2_plus1", "SS4_plus1", "SS5_plus1", "SS6_plus1", "SS6_plus1", "SS7_plus1", "SS8_plus1", "SS9_plus1"),
+  TF_Accuracy = c("TF9accuracy_num", "TF4accuracy_num", "TF3accuracy_num", "TF7accuracy_num", "TF11accuracy_num",
+                  "TF3accuracy_num", "TF5accuracy_num", "TF3accuracy_num"),
+  Coefficient = c(-0.550, -0.880, 0.641, 1.414, 1.245, 0.764, 0.408, 0.487),
+  Odds_Ratio = c(0.577, 0.415, 1.898, 4.113, 3.474, 2.147, 1.503, 1.627),
+  CI_Lower = c(0.361, 0.194, 1.200, 1.313, 1.315, 1.122, 1.102, 1.040),
+  CI_Upper = c(0.877, 0.743, 3.196, 18.778, 13.114, 5.271, 2.111, 2.658),
+  P_Value = c(0.013, 0.008, 0.009, 0.045, 0.042, 0.049, 0.013, 0.039)
+)
+
+# Create the mapping for SS variable names
+ss_labels <- c(
+  "SS2_plus1" = "Religiosity",
+  "SS4_plus1" = "Regular Thought About Heart Health",
+  "SS5_plus1" = "Trust in Healthcare Providers",
+  "SS6_plus1" = "Knowledge of MASALA",
+  "SS7_plus1" = "Knowledge of Policy Changes",
+  "SS8_plus1" = "Regular Social Media Use",
+  "SS9_plus1" = "Confidence in Survey Accuracy"
+)
+
+# Clean the TF labels to "Question #"
+sig_results <- sig_results %>%
+  mutate(
+    SS_Predictor = ss_labels[SS_Predictor],
+    TF_Accuracy = gsub("TF([0-9]+)accuracy_num", "Question \\1", TF_Accuracy)
+  )
+
+# Generate the gt table
+unadjusted_logistic_regression <- sig_results %>%
+  gt() %>%
+  tab_header(title = "Logistic Regression Results (p < 0.05): Unadjusted Model") %>%
+  cols_label(
+    SS_Predictor = "Predictor Variable",
+    TF_Accuracy = "True or False Question",
+    Coefficient = "Coefficient",
+    Odds_Ratio = "Odds Ratio",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)",
+    P_Value = "P-Value"
+  ) %>%
+  fmt_number(columns = c(Coefficient, Odds_Ratio, CI_Lower, CI_Upper, P_Value), decimals = 3) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(table.font.names = "Times New Roman")
+
+# Save the table as PNG for thesis
+gtsave(unadjusted_logistic_regression, 
+       "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/unadjusted_logistic_regression.png", 
+       vwidth = 5000, vheight = 200)
+
+unadjusted_logistic_regression 
+```
+
+Various SS variables were found to be significant predictors of TF questions, which were then further analyzed through adjusted models. Relationships between SS and TF that were not found to be significant were not further analyzed in adjusted models.
+
+Next, chi-square and Fisher's test of each SSElse variable were tested to detect significant relationships between each true or false question. The assumptions for Chi-squared were run through a loop function that checked assumptions for all relationships between categorical variables and each True or False question. The code then automatically populated only results that were significant (p\<0.05) into one table.
+
+```{r, warning = FALSE}
+# Limit predictors to SS1Else - SS9Else only
+predictors <- paste0("SS", 1:9, "Else")
+
+# Initialize results dataframe
+sig_results <- data.frame(
+  Predictor = character(),
+  Outcome = character(),
+  Test = character(),
+  P_Value = numeric(),
+  Odds_Ratio = numeric(),
+  CI_Lower = numeric(),
+  CI_Upper = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop through SS predictors and TF1-12 outcomes
+for (pred in predictors) {
+  for (tf in paste0("TF", 1:12, "accuracy")) {
+    # 2x2 table
+    test_table <- table(na.omit(sacvd[, c(pred, tf)]))
+    if (nrow(test_table) < 2 || ncol(test_table) < 2) next
+    
+    odds_ratio <- NA
+    ci_lower <- NA
+    ci_upper <- NA
+    
+    # Check expected counts
+    expected <- chisq.test(test_table)$expected
+    if (all(expected >= 5)) {
+      test_result <- chisq.test(test_table)
+      test_type <- "Chi-squared"
+    } else {
+      test_result <- fisher.test(test_table)
+      test_type <- "Fisher's Exact"
+      odds_ratio <- ifelse(is.null(test_result$estimate), NA, as.numeric(test_result$estimate))
+      ci_lower <- test_result$conf.int[1]
+      ci_upper <- test_result$conf.int[2]
+    }
+    
+    # Store significant results
+    if (test_result$p.value < 0.05) {
+      sig_results <- rbind(sig_results, data.frame(
+        Predictor = pred,
+        Outcome = tf,
+        Test = test_type,
+        P_Value = round(test_result$p.value, 4),
+        Odds_Ratio = round(odds_ratio, 3),
+        CI_Lower = round(ci_lower, 3),
+        CI_Upper = round(ci_upper, 3)
+      ))
+    }
+  }
+}
+
+# Generate GT table
+sig_gt_table <- sig_results %>%
+  gt() %>%
+  tab_header(title = "Significant Chi-square / Fisher's Test Results") %>%
+  cols_label(
+    Predictor = "Predictor Variable",
+    Outcome = "True or False Question",
+    Test = "Test Type",
+    P_Value = "P-Value",
+    Odds_Ratio = "Odds Ratio",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)"
+  ) %>%
+  fmt_number(columns = c(P_Value, Odds_Ratio, CI_Lower, CI_Upper), decimals = 3) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(table.font.names = "Times New Roman")
+
+
+
+#CREATE TABLE FOR THESIS 
+
+# Example input (replace this with your actual chi_results dataframe)
+chi_results <- data.frame(
+  SS_Predictor = c("SS2Else", "SS3Else", "SS3Else", "SS4Else", "SS5Else", "SS7Else", "SS8Else", "SS9Else"),
+  TF_Accuracy = c("TF9accuracy", "TF3accuracy", "TF12accuracy", "TF4accuracy", "TF3accuracy", 
+                  "TF3accuracy", "TF5accuracy", "TF12accuracy"),
+  Test_Type = c("Fisher's Exact", "Fisher's Exact", "Fisher's Exact", "Fisher's Exact", "Fisher's Exact",
+                "Fisher's Exact", "Chi-squared", "Fisher's Exact"),
+  P_Value = c(0.025, 0.012, 0.037, 0.048, 0.000, 0.049, 0.047, 0.008),
+  Odds_Ratio = c(0.204, 5.479, 4.805, 0.190, 13.138, Inf, NA, 7.341),
+  CI_Lower = c(0.039, 1.223, 0.873, 0.027, 2.507, 0.997, NA, 1.371),
+  CI_Upper = c(1.000, 26.227, 27.114, 1.033, 93.851, Inf, NA, 52.366)
+)
+
+# Map of SS labels
+ss_label_map <- c(
+  "SS2Else" = "Religiosity",
+  "SS3Else" = "Regular Consumption of SA Diet",
+  "SS4Else" = "Regular Thought About Heart Health",
+  "SS5Else" = "Trust in Healthcare Providers",
+  "SS6Else" = "Knowledge of MASALA",
+  "SS7Else" = "Knowledge of Policy Changes",
+  "SS8Else" = "Regular Social Media Use",
+  "SS9Else" = "Confidence in Survey Accuracy"
+)
+
+# Apply the SS label mapping and clean TF Accuracy to "Question #"
+chi_results <- chi_results %>%
+  mutate(
+    SS_Predictor = ifelse(SS_Predictor %in% names(ss_label_map), ss_label_map[SS_Predictor], SS_Predictor),
+    TF_Accuracy = gsub("TF([0-9]+)accuracy", "Question \\1", TF_Accuracy)
+  )
+
+# Generate the gt table with Times New Roman
+unadjusted_chiandfisher <- chi_results %>%
+  gt() %>%
+  tab_header(title = "Significant Chi-square / Fisher's Test Results") %>%
+  cols_label(
+    SS_Predictor = "Predictor Variable",
+    TF_Accuracy = "True or False Question",
+    Test_Type = "Test Type",
+    P_Value = "P-Value",
+    Odds_Ratio = "Odds Ratio",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)"
+  ) %>%
+  fmt_number(columns = c(P_Value, Odds_Ratio, CI_Lower, CI_Upper), decimals = 3) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(table.font.names = "Times New Roman")
+
+gtsave(unadjusted_chiandfisher, "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/unadjusted_chiandfisher.png", vwidth = 4000, vheight = 200)
+```
+
+***2) Demographic Variables - Un-adjusted Results***
+
+Logistic Regression of Each Demographic Variable with Each TF Question Individually
+
+```{r}
+# List of new predictors
+predictors <- c("Sex", "HighestDegreeElse", "Employment2Else", 
+                "Diet2Else", "Religion3Else", "Immigration.Status2Else", 
+                "Cardiometabolic.DiseaseElse")
+
+# Initialize a list to store significant results
+sig_logistic_results <- list()
+
+# Outer loop: New predictors
+for (pred in predictors) {
+  
+  # Inner loop: TF outcome variables
+  for (tf_num in 1:12) {
+    outcome <- paste0("TF", tf_num, "accuracy_num")
+    
+    # Run logistic regression
+    formula <- as.formula(paste(outcome, "~", pred))
+    model <- glm(formula, data = sacvd, family = binomial)
+    
+    # Extract coefficient summary
+    coef_summary <- summary(model)$coefficients
+    
+    # Check if predictor is in the model and significant
+    if (pred %in% rownames(coef_summary)) {
+      estimate <- coef_summary[pred, "Estimate"]
+      p_value <- coef_summary[pred, "Pr(>|z|)"]
+      
+      # Store only significant results
+      if (p_value < 0.05) {
+        odds_ratio <- exp(estimate)
+        ci <- exp(confint(model)[pred, ])
+        
+        sig_logistic_results[[length(sig_logistic_results) + 1]] <- data.frame(
+          Predictor = pred,
+          TF_Accuracy = outcome,
+          Coefficient = estimate,
+          Odds_Ratio = odds_ratio,
+          CI_Lower = ci[1],
+          CI_Upper = ci[2],
+          P_Value = p_value
+        )
+      }
+    }
+  }
+}
+
+# Combine all significant results
+sig_results_df <- do.call(rbind, sig_logistic_results)
+
+if (!is.null(sig_logistic_results) && length(sig_logistic_results) > 0) {
+  sig_results_df <- do.call(rbind, sig_logistic_results)
+  
+  # Create GT table with Times New Roman font
+  sig_results_gt <- sig_results_df %>%
+    gt() %>%
+    tab_header(title = "Significant Logistic Regression Results (p < 0.05)") %>%
+    cols_label(
+      Predictor = "Predictor Variable",
+      TF_Accuracy = "True or False Question",
+      Coefficient = "Coefficient",
+      Odds_Ratio = "Odds Ratio",
+      CI_Lower = "95% CI (Lower)",
+      CI_Upper = "95% CI (Upper)",
+      P_Value = "P-Value"
+    ) %>%
+    fmt_number(columns = c(Coefficient, Odds_Ratio, CI_Lower, CI_Upper, P_Value), decimals = 3) %>%
+    tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+    tab_options(table.font.names = "Times New Roman")
+  
+  print(sig_results_gt)
+  
+} else {
+  print("No significant results (p < 0.05) found.")
+}
+```
+
+Next, chi-square and Fisher's test of each demographic variable were tested to detect significant relationships between each true or false question. The assumptions for Chi-squared were run through a loop function that checked assumptions for all relationships between categorical variables and each True or False question. The code then automatically populated only results that were significant (p\<0.05) into one table.
+
+```{r, warning = FALSE}
+# Categorical predictors
+predictors <- c("Sex", "HighestDegreeElse", "Employment2Else", 
+                "Religion3Else", "Diet2Else", "Immigration.Status2Else", 
+                "Cardiometabolic.DiseaseElse")
+
+# Initialize results dataframe
+sig_results <- data.frame(
+  Predictor = character(),
+  Outcome = character(),
+  Test = character(),
+  P_Value = numeric(),
+  Odds_Ratio = numeric(),
+  CI_Lower = numeric(),
+  CI_Upper = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop through predictors and TF1-12 outcomes
+for (pred in predictors) {
+  for (tf in paste0("TF", 1:12, "accuracy")) {
+    
+    # 2x2 table
+    test_table <- table(na.omit(sacvd[, c(pred, tf)]))
+    if (nrow(test_table) < 2 || ncol(test_table) < 2) next
+    
+    odds_ratio <- NA
+    ci_lower <- NA
+    ci_upper <- NA
+    
+    # Check expected counts
+    expected <- chisq.test(test_table)$expected
+    if (all(expected >= 5)) {
+      test_result <- chisq.test(test_table)
+      test_type <- "Chi-squared"
+    } else {
+      test_result <- fisher.test(test_table)
+      test_type <- "Fisher's Exact"
+      odds_ratio <- ifelse(is.null(test_result$estimate), NA, as.numeric(test_result$estimate))
+      ci_lower <- test_result$conf.int[1]
+      ci_upper <- test_result$conf.int[2]
+    }
+    
+    # Store significant results (p < 0.05)
+    if (test_result$p.value < 0.05) {
+      sig_results <- rbind(sig_results, data.frame(
+        Predictor = pred,
+        Outcome = tf,
+        Test = test_type,
+        P_Value = round(test_result$p.value, 4),
+        Odds_Ratio = round(odds_ratio, 3),
+        CI_Lower = round(ci_lower, 3),
+        CI_Upper = round(ci_upper, 3)
+      ))
+    }
+  }
+}
+
+# Handle case when no significant results
+if (nrow(sig_results) > 0) {
+  sig_gt_table <- sig_results %>%
+    gt() %>%
+    tab_header(title = "Significant Chi-square / Fisher's Test Results") %>%
+    cols_label(
+      Predictor = "Predictor Variable",
+      Outcome = "True or False Question",
+      Test = "Test Type",
+      P_Value = "P-Value",
+      Odds_Ratio = "Odds Ratio",
+      CI_Lower = "95% CI (Lower)",
+      CI_Upper = "95% CI (Upper)"
+    ) %>%
+    fmt_number(columns = c(P_Value, Odds_Ratio, CI_Lower, CI_Upper), decimals = 3) %>%
+    tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+    tab_options(table.font.names = "Times New Roman")
+  
+  print(sig_gt_table)
+  
+} else {
+  print("No significant results (p < 0.05) found.")
+}
+```
+
+The demographic variables did not demonstrate any significance in predicting accuracy.
+
+***3) SS Variables + Covariates (Sequential Adjusted Results)***
+
+Each pair of significant predictors and true or false questions from the un-adjusted model were then put into a new set of logistic regression tests that added one additional co-variate. Each of these variables was only added one at a time and in separate tests, to determine if any predictors affected the significance of the relationships found in the un-adjusted model.
+
+```{r, message = FALSE, warning = FALSE}
+# Significant SS-TF pairs you provided
+sig_pairs <- data.frame(
+  SS = c("SS2_plus1", "SS4_plus1", "SS5_plus1", "SS6_plus1", "SS6_plus1",
+         "SS7_plus1", "SS8_plus1", "SS9_plus1"),
+  TF = c("TF9accuracy_num", "TF4accuracy_num", "TF3accuracy_num", "TF7accuracy_num", "TF11accuracy_num",
+         "TF3accuracy_num", "TF5accuracy_num", "TF3accuracy_num")
+)
+
+# Covariates to test one at a time
+covariates <- c("Age", "Sex", "Employment2Else", "Diet2Else", 
+                "Religion3Else", "Cardiometabolic.DiseaseElse", 
+                "HighestDegreeElse", "Immigration.Status2Else")
+
+# Empty data frames to collect results
+adjusted_results_loss <- data.frame()
+adjusted_results_remain <- data.frame()
+
+# Sequential adjustment loop
+for (i in 1:nrow(sig_pairs)) {
+  SS_var <- sig_pairs$SS[i]
+  TF_var <- sig_pairs$TF[i]
+  
+  for (cov in covariates) {
+    # Logistic regression with one covariate added
+    formula <- as.formula(paste(TF_var, "~", SS_var, "+", cov))
+    model <- glm(formula, data = sacvd, family = "binomial")
+    
+    model_summary <- summary(model)
+    ss_row <- which(rownames(model_summary$coefficients) == SS_var)
+    
+    if (length(ss_row) > 0) {
+      p_val <- model_summary$coefficients[ss_row, "Pr(>|z|)"]
+      OR <- exp(coef(model)[ss_row])
+      CI <- exp(confint(model)[ss_row, ])
+      
+      # Build the result row
+      result_row <- data.frame(
+        Predictor = SS_var,
+        TF_Accuracy = TF_var,
+        Adjusted_For = cov,
+        Coefficient = coef(model)[ss_row],
+        Odds_Ratio = OR,
+        CI_Lower = CI[1],
+        CI_Upper = CI[2],
+        P_Value = p_val
+      )
+      
+      # Append to the correct bucket based on significance
+      if (p_val > 0.05) {
+        adjusted_results_loss <- rbind(adjusted_results_loss, result_row)
+      } else {
+        adjusted_results_remain <- rbind(adjusted_results_remain, result_row)
+      }
+    }
+  }
+}
+
+# -------------------------------------------------------
+# Recode function for cleaner table output
+clean_table <- function(df) {
+  df$Predictor <- dplyr::recode(df$Predictor,
+    "SS1_plus1" = "Connection to South Asian Identity",
+    "SS2_plus1" = "Religiosity",
+    "SS3_plus1" = "Regular SA Typical Diet",
+    "SS4_plus1" = "Regular Thought About Heart Health",
+    "SS5_plus1" = "Trust in Healthcare Providers",
+    "SS6_plus1" = "Knowledge of MASALA",
+    "SS7_plus1" = "Knowledge of Policy Changes",
+    "SS8_plus1" = "Regular Social Media Use",
+    "SS9_plus1" = "Confidence in Accuracy"
+  )
+  
+  # Clean TF_Accuracy to "Question #"
+  df$TF_Accuracy <- gsub("TF([0-9]+)accuracy_num", "Question \\1", df$TF_Accuracy)
+  
+# Clean Adjusted_For to remove 'Else', periods, trailing numbers, and extra spaces
+df$Adjusted_For <- gsub("Else", "", df$Adjusted_For)
+df$Adjusted_For <- gsub("\\.", " ", df$Adjusted_For)
+df$Adjusted_For <- gsub("[0-9]+$", "", df$Adjusted_For)   
+df$Adjusted_For <- trimws(df$Adjusted_For)               
+  return(df)
+}
+
+# Apply cleaning
+if (nrow(adjusted_results_loss) > 0) adjusted_results_loss <- clean_table(adjusted_results_loss)
+if (nrow(adjusted_results_remain) > 0) adjusted_results_remain <- clean_table(adjusted_results_remain)
+
+# -------------------------------------------------------
+# Output: Predictors that lose significance after adjusting
+if (nrow(adjusted_results_loss) > 0) {
+  gt_loss <- adjusted_results_loss %>%
+    gt() %>%
+    tab_header(title = "Logistic Regression Results (p>0.05): Sequentially Adjusted Model") %>%
+    cols_label(
+      Predictor = "Predictor",
+      TF_Accuracy = "Question #",
+      Adjusted_For = "Adjusted For",
+      Coefficient = "Coefficient",
+      Odds_Ratio = "Odds Ratio",
+      CI_Lower = "95% CI (Lower)",
+      CI_Upper = "95% CI (Upper)",
+      P_Value = "P-Value"
+    ) %>%
+    fmt_number(columns = c(Coefficient, Odds_Ratio, CI_Lower, CI_Upper, P_Value), decimals = 3) %>%
+    tab_options(table.font.names = "Times New Roman") %>%
+    tab_source_note(source_note = "Data source: SACVD (2024-2025)")
+  
+  # Optional: Save the table as an image
+  gtsave(gt_loss, "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/gt_loss_table.png", vwidth = 4000, vheight = 200)
+} else {
+  print("No SS predictors lost significance after adjustment.")
+}
+
+# -------------------------------------------------------
+# Output: Predictors that remain significant (if needed)
+if (nrow(adjusted_results_remain) > 0) {
+  gt_remain <- adjusted_results_remain %>%
+    gt() %>%
+    tab_header(title = "Logistic Regression Results (p<0.05): Sequentially Adjusted Model") %>%
+    cols_label(
+      Predictor = "Predictor",
+      TF_Accuracy = "Question #",
+      Adjusted_For = "Adjusted For",
+      Coefficient = "Coefficient",
+      Odds_Ratio = "Odds Ratio",
+      CI_Lower = "95% CI (Lower)",
+      CI_Upper = "95% CI (Upper)",
+      P_Value = "P-Value"
+    ) %>%
+    fmt_number(columns = c(Coefficient, Odds_Ratio, CI_Lower, CI_Upper, P_Value), decimals = 3) %>%
+    tab_options(table.font.names = "Times New Roman") %>%
+    tab_source_note(source_note = "Data source: SACVD (2024-2025)")
+
+  # Save the table as an image
+  gtsave(gt_remain, "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/gt_remain_table.png", vwidth = 4000, vheight = 200)
+} else {
+  print("No SS predictors remained significant after adjustment.")
+}
+
+gt_loss 
+gt_remain
+```
+
+***4) SS Variables + Covariates (Fully Adjusted Results)***
+
+Using the variables that were found to affect the significance of the relationships between predictor variables and true or false accuracy from the sequentially adjusted model, a fully adjusted model was performed alongside the same 'SS' variable predictors found to be statistically significant predictors of accuracy in the un-adjusted model.
+
+```{r, warning=FALSE}
+# List of significant SS-TF pairs from unadjusted model
+sig_pairs <- data.frame(
+  SS = c("SS2_plus1", "SS4_plus1", "SS5_plus1", "SS6_plus1", "SS6_plus1",
+         "SS7_plus1", "SS8_plus1", "SS9_plus1"),
+  TF = c("TF9accuracy_num", "TF4accuracy_num", "TF3accuracy_num", "TF7accuracy_num", "TF11accuracy_num",
+         "TF3accuracy_num", "TF5accuracy_num", "TF3accuracy_num")
+)
+
+# Covariates for adjustment
+covariates <- c("Sex", "Employment2Else", "Diet2Else", "Religion3Else", "Cardiometabolic.DiseaseElse")
+
+# Initialize results storage
+adjusted_results <- data.frame()
+
+for (i in 1:nrow(sig_pairs)) {
+  ss_var <- sig_pairs$SS[i]
+  tf_var <- sig_pairs$TF[i]
+  
+  formula <- as.formula(paste(tf_var, "~", ss_var, "+", paste(covariates, collapse = " + ")))
+  
+  # Run logistic regression
+  model <- glm(formula, data = sacvd, family = binomial)
+  
+  if (ss_var %in% names(model$coefficients)) {
+    estimate <- model$coefficients[ss_var]
+    # Replace model$prob[...] and model$ci.lower[...] with actual extraction or mock values for now
+    p_value <- summary(model)$coefficients[ss_var, 4]  # p-value from standard glm summary
+    ci_lower <- estimate - 1.96 * summary(model)$coefficients[ss_var, 2]
+    ci_upper <- estimate + 1.96 * summary(model)$coefficients[ss_var, 2]
+    odds_ratio <- exp(estimate)
+    
+    if (p_value < 0.05) {
+      adjusted_results <- rbind(adjusted_results, data.frame(
+        SS_Predictor = ss_var,
+        TF_Accuracy = tf_var,
+        Coefficient = round(estimate, 3),
+        Odds_Ratio = round(odds_ratio, 3),
+        CI_Lower = round(exp(ci_lower), 3),
+        CI_Upper = round(exp(ci_upper), 3),
+        P_Value = round(p_value, 3)
+      ))
+    }
+  }
+}
+
+if (nrow(adjusted_results) > 0) {
+  # Create the gt table for significant results
+  adjusted_gt <- adjusted_results %>%
+    gt() %>%
+    tab_header(title = "Fully Adjusted Logistic Regression Results (Significant Pairs)") %>%
+    cols_label(
+      SS_Predictor = "SS Predictor",
+      TF_Accuracy = "True/False Question",
+      Coefficient = "Coefficient",
+      Odds_Ratio = "Odds Ratio",
+      CI_Lower = "95% CI (Lower)",
+      CI_Upper = "95% CI (Upper)",
+      P_Value = "P-Value"
+    ) %>%
+    fmt_number(columns = c(Coefficient, Odds_Ratio, CI_Lower, CI_Upper, P_Value), decimals = 3) %>%
+    tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+    tab_options(table.font.names = "Times New Roman")
+  
+  # Save the table
+  gtsave(adjusted_gt, 
+         "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/adjusted_gt.png", 
+         vwidth = 4000, vheight = 200)
+  
+} else {
+  # Print no significance message if no significant results
+  print("No significant results found.")
+}
+```
+
+Due to the small samples sizes present in the data set, a Firth logistic regression was also run on the full model to detect if any relationships may be detected with a model more suited to smaller sample sizes.
+
+```{r, warning=FALSE}
+# Mapping SS variable names to descriptive names
+ss_name_map <- c(
+  "SS1_plus1" = "Connection to South Asian Identity",
+  "SS2_plus1" = "Religiosity",
+  "SS3_plus1" = "Regular SA Typical Diet",
+  "SS4_plus1" = "Regular Thought About Heart Health",
+  "SS5_plus1" = "Trust in Healthcare Providers",
+  "SS6_plus1" = "Knowledge of MASALA",
+  "SS7_plus1" = "Knowledge of Policy Changes",
+  "SS8_plus1" = "Regular Social Media Use",
+  "SS9_plus1" = "Confidence in Accuracy"
+)
+
+# List of significant SS-TF pairs from unadjusted model
+sig_pairs <- data.frame(
+  SS = c("SS2_plus1", "SS4_plus1", "SS5_plus1", "SS6_plus1", "SS6_plus1",
+         "SS7_plus1", "SS8_plus1", "SS9_plus1"),
+  TF = c("TF9accuracy_num", "TF4accuracy_num", "TF3accuracy_num", "TF7accuracy_num", "TF11accuracy_num",
+         "TF3accuracy_num", "TF5accuracy_num", "TF3accuracy_num")
+)
+
+# Covariates for adjustment
+covariates <- c("Sex", "Employment2Else", "Diet2Else", "Religion3Else", "Cardiometabolic.DiseaseElse")
+
+# Initialize results storage
+firth_results <- data.frame()
+
+for (i in 1:nrow(sig_pairs)) {
+  ss_var <- sig_pairs$SS[i]
+  tf_var <- sig_pairs$TF[i]
+  
+  formula <- as.formula(paste(tf_var, "~", ss_var, "+", paste(covariates, collapse = " + ")))
+  
+  # Run Firth logistic regression
+  model <- logistf(formula, data = sacvd)
+  
+  # Extract index of SS predictor for consistent access
+  ss_index <- which(names(model$coefficients) == ss_var)
+  
+  if (length(ss_index) > 0) {
+    estimate <- model$coefficients[ss_index]
+    p_value <- model$prob[ss_index]
+    ci_lower <- model$ci.lower[ss_index]
+    ci_upper <- model$ci.upper[ss_index]
+    odds_ratio <- exp(estimate)
+    
+    # Only keep significant SS predictors
+    if (p_value < 0.05) {
+      firth_results <- rbind(firth_results, data.frame(
+        SS_Predictor = ss_var,
+        TF_Accuracy = tf_var,
+        Coefficient = round(estimate, 3),
+        Odds_Ratio = round(odds_ratio, 3),
+        CI_Lower = round(exp(ci_lower), 3),
+        CI_Upper = round(exp(ci_upper), 3),
+        P_Value = round(p_value, 3)
+      ))
+    }
+  }
+}
+
+if (nrow(firth_results) > 0) {
+  
+  # Recode SS and TF variable names for clarity
+  firth_results <- firth_results %>%
+    mutate(
+      Predictor = dplyr::recode(SS_Predictor, !!!as.list(ss_name_map)),
+      Question = gsub("TF([0-9]+)accuracy_num", "Question \\1", TF_Accuracy)
+    ) %>%
+    select(Predictor, Question, Coefficient, Odds_Ratio, CI_Lower, CI_Upper, P_Value)
+
+  # Create the gt table for significant results
+  firth_gt <- firth_results %>%
+    gt() %>%
+    tab_header(title = "Firth Logistic Regression Results (p<0.05): Fully Adjusted Model") %>%
+    cols_label(
+      Predictor = "Predictor Variable",
+      Question = "True/False Question",
+      Coefficient = "Coefficient",
+      Odds_Ratio = "Odds Ratio",
+      CI_Lower = "95% CI (Lower)",
+      CI_Upper = "95% CI (Upper)",
+      P_Value = "P-Value"
+    ) %>%
+    fmt_number(columns = c(Coefficient, Odds_Ratio, CI_Lower, CI_Upper, P_Value), decimals = 3) %>%
+    tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+    tab_options(table.font.names = "Times New Roman")
+
+  # Save the table
+  gtsave(firth_gt, 
+         "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/firth_results_gt.png", 
+         vwidth = 5000, vheight = 300)
+
+} else {
+  # Print no significance message if no significant results
+  print("No significant results found.")
+}
+
+#Just to see other covariates, but none were significant other than SS8
+summary(logistf(TF5accuracy_num ~ SS8_plus1 + Sex + Employment2Else + Diet2Else + Religion3Else + Cardiometabolic.DiseaseElse, data = sacvd))
+```
+
+Regular Social Media Use (SS8) was not significant in sequential adjustments but became significant in the fully adjusted Firth logistic regression model, suggesting its independent association emerges only after accounting for all co-variates and utilizing a logistic regression model that is suited for smaller sample sizes.
+
+***5) Further investigating Cook's distance outliers for relationships that were found to be significant***
+
+An assessment of true or false question four accuracy was completed to determine whether the relationship was significant between all predictors and the question accuracy with and without outliers (Observations 22 and 29 for True and False Question 4). The outliers for True or False question 10 were not investigated as no predictors were found to significantly predict the accuracy of the question.
+
+First an un-adjusted model was looked at between SS4 and TF4 since this relationships was found to be significant (p\<0.05). With and without outliers, the relationship is significant with and without outliers.
+
+```{r}
+# Calculate Cook's Distance for TF4accuracy_num
+glm_tf4_unadj <- glm(TF4accuracy_num ~ SS4_plus1,
+               data = sacvd, family = binomial)
+
+summary(glm_tf4_unadj)
+
+cooks_tf4 <- cooks.distance(glm_tf4_unadj)
+
+# Identify which predictors are extreme for observations 22 and 29
+sacvd[c(22, 29), c("SS1_plus1", "SS2_plus1", "SS3_plus1", "SS4_plus1", 
+                    "SS5_plus1", "SS6_plus1", "SS7_plus1", "SS8_plus1", "SS9_plus1")]
+
+glm_tf4_no_outliers_unadj <- glm(TF4accuracy_num ~ SS4_plus1, 
+                           data = sacvd %>% filter(!row_number() %in% c(22, 29)), 
+                           family = binomial)
+
+summary(glm_tf4_no_outliers_unadj)
+```
+
+Next an adjusted model was run that tested the relationship between SS4 and all the co-variates tested in the fully-adjusted logistic regression model. With and without outliers, all predictors were found to not be significant predictors of accuracy on true or false question 4.
+
+```{r}
+# Calculate Cook's Distance for TF4accuracy_num
+glm_tf4_adj <- glm(TF4accuracy_num ~ SS4_plus1 + Sex + Employment2Else + Diet2Else + Religion3Else + Cardiometabolic.DiseaseElse, 
+               data = sacvd, family = binomial)
+
+summary(glm_tf4_adj)
+
+cooks_tf4 <- cooks.distance(glm_tf4_adj)
+
+# Identify which predictors are extreme for observations 22 and 29
+sacvd[c(22, 29), c("SS1_plus1", "SS2_plus1", "SS3_plus1", "SS4_plus1", 
+                    "SS5_plus1", "SS6_plus1", "SS7_plus1", "SS8_plus1", "SS9_plus1")]
+
+glm_tf4_no_outliers_adj <- glm(TF4accuracy_num ~ SS4_plus1 + Sex + Employment2Else + Diet2Else + Religion3Else + Cardiometabolic.DiseaseElse, 
+                           data = sacvd %>% filter(!row_number() %in% c(22, 29)), 
+                           family = binomial)
+
+summary(glm_tf4_no_outliers_adj)
+```
+
+Finally, an adjusted model was run that tested the relationships between SS4 and the other 'SS' variables and Age to align with the model tested in the Cook's test. While SS4 was found to be a significant predictor of accuracy in the model without outliers, this relationship was no longer significant without observations 22 and 29.
+
+```{r}
+# Calculate Cook's Distance for TF4accuracy_num
+glm_tf4_adj_ss <- glm(TF4accuracy_num ~ Age + SS1_plus1 + SS2_plus1 + SS3_plus1 + SS4_plus1 + SS5_plus1 + SS6_plus1 + SS7_plus1 + SS8_plus1 + SS9_plus1, 
+               data = sacvd, family = binomial)
+
+summary(glm_tf4_adj_ss)
+
+cooks_tf4 <- cooks.distance(glm_tf4_adj_ss)
+
+# Identify which predictors are extreme for observations 22 and 29
+sacvd[c(22, 29), c("SS1_plus1", "SS2_plus1", "SS3_plus1", "SS4_plus1", 
+                    "SS5_plus1", "SS6_plus1", "SS7_plus1", "SS8_plus1", "SS9_plus1")]
+
+glm_tf4_adj_ss_no_outliers <- glm(TF4accuracy_num ~ Age + SS1_plus1 + SS2_plus1 + SS3_plus1 + SS4_plus1 + SS5_plus1 + SS6_plus1 + SS7_plus1 + SS8_plus1 + SS9_plus1, 
+                           data = sacvd %>% filter(!row_number() %in% c(22, 29)), 
+                           family = binomial)
+
+summary(glm_tf4_adj_ss_no_outliers )
+```
+
+## Linear Regression Model for Total Summary Score
+
+***1) Checking Assumptions***
+
+Prior to conducting linear regression tests, the predictor and outcomes variables were fit into a linear regression model in order to evaluate if any assumptions of the model were violated prior to conducting analysis. The model diagnostics, a histogram of the residuals, and a Q-Q plot were generated to further investigate the normality of residuals, ensuring the validity of key linear regression assumptions prior to analysis: linearity, homoscedasticity, and normally distributed residuals.
+
+```{r}
+lm_model <- lm(SummaryScore ~ Age + SS1_plus1 + SS2_plus1  + SS3_plus1  + SS4_plus1  + SS5_plus1 + SS6_plus1 + SS7_plus1 + SS8_plus1 + SS9_plus1 + Sex + HighestDegreeElse + Employment2Else + Religion3Else + Diet2Else + Immigration.Status2Else + Cardiometabolic.DiseaseElse, data = sacvd)
+plot(lm_model) 
+hist(residuals(lm_model)) 
+qqnorm(residuals(lm_model)); qqline(residuals(lm_model))
+```
+
+While the variable of Diet was included in the initial linear regression model as a predictor, the diagnostic plots revealed the variable introduced influential leverage points and model instability in violation of the linear regression assumptions. Given the limited contribution of the variable to the model and its disproportionate influence, the variable Diet was excluded in the final linear regression models to adhere to the validity of the linear regression model and its assumptions.
+
+```{r}
+lm_model2 <- lm(SummaryScore ~ Age + SS1_plus1 + SS2_plus1  + SS3_plus1  + SS4_plus1  + SS5_plus1 + SS6_plus1 + SS7_plus1 + SS8_plus1 + SS9_plus1 + Sex + HighestDegreeElse + Employment2Else + Religion3Else + Immigration.Status2Else + Cardiometabolic.DiseaseElse, data = sacvd)
+plot(lm_model2) 
+hist(residuals(lm_model2)) 
+qqnorm(residuals(lm_model2)); qqline(residuals(lm_model))
+```
+
+***2) Each Predictor Individually (Un-adjusted Results)***
+
+Linear Regression of variable with each TF Question individually.
+
+```{r}
+# Variables
+ss_predictors <- paste0("SS", 1:9, "_plus1")
+covariates <- c("Age", "Sex", "HighestDegreeElse", "Employment2Else", 
+                "Religion3Else", "Immigration.Status2Else", "Cardiometabolic.DiseaseElse")
+
+# Initialize results storage
+lm_results <- data.frame(
+  Predictor = character(),
+  Coefficient = numeric(),
+  Std_Error = numeric(),
+  t_value = numeric(),
+  P_Value = numeric(),
+  CI_Lower = numeric(),
+  CI_Upper = numeric(),
+  R_Squared = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop for SS predictors (unadjusted)
+for (ss_var in ss_predictors) {
+  model <- lm(as.formula(paste("SummaryScore ~", ss_var)), data = sacvd)
+  coef_summary <- summary(model)$coefficients
+  if (ss_var %in% rownames(coef_summary)) {
+    estimate <- coef_summary[ss_var, "Estimate"]
+    std_error <- coef_summary[ss_var, "Std. Error"]
+    t_val <- coef_summary[ss_var, "t value"]
+    p_val <- coef_summary[ss_var, "Pr(>|t|)"]
+    ci_lower <- estimate - 1.96 * std_error
+    ci_upper <- estimate + 1.96 * std_error
+    r_sq <- summary(model)$r.squared
+    
+    lm_results <- rbind(lm_results, data.frame(
+      Predictor = ss_var,
+      Coefficient = round(estimate, 3),
+      Std_Error = round(std_error, 3),
+      t_value = round(t_val, 3),
+      P_Value = round(p_val, 4),
+      CI_Lower = round(ci_lower, 3),
+      CI_Upper = round(ci_upper, 3),
+      R_Squared = round(r_sq, 3)
+    ))
+  }
+}
+
+# Loop for covariates (unadjusted)
+for (covar in covariates) {
+  model <- lm(as.formula(paste("SummaryScore ~", covar)), data = sacvd)
+  coef_summary <- summary(model)$coefficients
+  if (covar %in% rownames(coef_summary)) {
+    estimate <- coef_summary[covar, "Estimate"]
+    std_error <- coef_summary[covar, "Std. Error"]
+    t_val <- coef_summary[covar, "t value"]
+    p_val <- coef_summary[covar, "Pr(>|t|)"]
+    ci_lower <- estimate - 1.96 * std_error
+    ci_upper <- estimate + 1.96 * std_error
+    r_sq <- summary(model)$r.squared
+    
+    lm_results <- rbind(lm_results, data.frame(
+      Predictor = covar,
+      Coefficient = round(estimate, 3),
+      Std_Error = round(std_error, 3),
+      t_value = round(t_val, 3),
+      P_Value = round(p_val, 4),
+      CI_Lower = round(ci_lower, 3),
+      CI_Upper = round(ci_upper, 3),
+      R_Squared = round(r_sq, 3)
+    ))
+  }
+}
+
+# Filter significant results only (p < 0.05)
+sig_results <- lm_results %>% filter(P_Value < 0.05)
+
+# Optional: Create a mapping for specific labels
+ss_labels <- c("SS6_plus1" = "Knowledge of MASALA")
+
+# Update the Predictor column where needed
+sig_results <- sig_results %>%
+  mutate(Predictor = ifelse(Predictor == "SS6_plus1", ss_labels[Predictor], Predictor))
+
+# Create the table
+linear_unadj <- sig_results %>%
+  gt() %>%
+  tab_header(title = "Linear Regression Results (p<0.05): Unadjusted Model") %>%
+  cols_label(
+    Predictor = "Predictor",
+    Coefficient = "Beta Coefficient",
+    Std_Error = "Std. Error",
+    t_value = "t Value",
+    P_Value = "P-Value",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)",
+    R_Squared = "R-Squared"
+  ) %>%
+  fmt_number(columns = where(is.numeric), decimals = 3) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(table.font.names = "Times New Roman")
+
+linear_unadj
+
+# Save the table
+gtsave(linear_unadj, 
+       "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/linear_unadj.png", 
+       vwidth = 5000, vheight = 300)
+```
+
+Knowledge of MASALA was found to be a significant predictor of total accuracy. This was the only predictor found to be significant after the un-adjusted linear regression model.
+
+***3) All Predictors (Sequential Adjusted Results)***
+
+Linear Regression testing Knowledge of MASALA (SS6) in a sequential model with each other variable in the data set added to determine if significance between SS6 and Summary Score remained significant. Each of these variables was only added one at a time and in separate tests, to determine if any predictors affected the significance of the relationships found in the un-adjusted model.
+
+```{r}
+# Define the significant SS predictor based on your table
+sig_ss <- c("SS6_plus1")
+
+# Define the other SS predictors (excluding SS6)
+other_ss <- setdiff(paste0("SS", 1:9, "_plus1"), sig_ss)
+
+# Covariates
+covariates <- c("Age", "Sex", "HighestDegreeElse", "Employment2Else", 
+                "Religion3Else", "Immigration.Status2Else", "Cardiometabolic.DiseaseElse")
+
+# All adjustment variables to test sequentially
+adjustment_vars <- c(other_ss, covariates)
+
+# Store results
+sequential_results <- data.frame()
+
+# Loop over the significant SS predictor
+for (ss in sig_ss) {
+  # Baseline unadjusted model
+  base_model <- lm(as.formula(paste("SummaryScore ~", ss)), data = sacvd)
+  base_p <- summary(base_model)$coefficients[ss, "Pr(>|t|)"]
+  
+  # Sequentially add adjustment variables
+  for (adj_var in adjustment_vars) {
+    formula <- as.formula(paste("SummaryScore ~", ss, "+", adj_var))
+    model <- lm(formula, data = sacvd)
+    coef_summary <- summary(model)$coefficients
+    
+    if (ss %in% rownames(coef_summary)) {
+      beta <- coef_summary[ss, "Estimate"]
+      std_error <- coef_summary[ss, "Std. Error"]
+      t_value <- coef_summary[ss, "t value"]
+      p_value <- coef_summary[ss, "Pr(>|t|)"]
+      
+      # Calculate 95% CI
+      ci_lower <- beta - 1.96 * std_error
+      ci_upper <- beta + 1.96 * std_error
+      
+      sequential_results <- rbind(sequential_results, data.frame(
+        SS_Predictor = ss,
+        Adjusted_For = adj_var,
+        Beta = round(beta, 3),
+        Std_Error = round(std_error, 3),
+        t_value = round(t_value, 3),
+        CI_Lower = round(ci_lower, 3),
+        CI_Upper = round(ci_upper, 3),
+        P_Value = round(p_value, 4)
+      ))
+    }
+  }
+}
+
+# Split results into Significant (p < 0.05) and Non-Significant (p >= 0.05)
+sig_after_adj <- sequential_results %>% filter(P_Value < 0.05)
+non_sig_after_adj <- sequential_results %>% filter(P_Value >= 0.05)
+
+# GT Table for Non-Significant after adjustment
+non_sig_table <- non_sig_after_adj %>%
+  gt() %>%
+  tab_header(title = "Sequential Adjustment: SS Predictor Lost Significance") %>%
+  cols_label(
+    SS_Predictor = "SS Predictor",
+    Adjusted_For = "Adjusted For",
+    Beta = "Beta Coefficient",
+    Std_Error = "Std. Error",
+    t_value = "t Value",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)",
+    P_Value = "P-Value"
+  ) %>%
+  fmt_number(columns = c(Beta, Std_Error, t_value, CI_Lower, CI_Upper, P_Value), decimals = 3) %>% 
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(table.font.names = "Times New Roman")
+
+non_sig_table
+
+# Input data from the non-significant sequential results table
+sequential_results <- data.frame(
+  SS_Predictor = "SS6_plus1",
+  Adjusted_For = "SS7_plus1",
+  Beta = 4.662,
+  Std_Error = 2.522,
+  t_value = 1.848,
+  CI_Lower = -0.282,
+  CI_Upper = 9.605,
+  P_Value = 0.071
+)
+
+# Rename predictors for readability
+ss_labels <- c("SS6_plus1" = "Knowledge of MASALA")
+adjust_labels <- c("SS7_plus1" = "Knowledge of Policy Changes")
+
+sequential_results <- sequential_results %>%
+  mutate(
+    SS_Predictor = ss_labels[SS_Predictor],
+    Adjusted_For = adjust_labels[Adjusted_For]
+  )
+
+# Create gt table
+sequential_table <- sequential_results %>%
+  gt() %>%
+  tab_header(title = "Sequential Adjustment: SS Predictor Lost Significance") %>%
+  cols_label(
+    SS_Predictor = "SS Predictor",
+    Adjusted_For = "Adjusted For",
+    Beta = "Beta Coefficient",
+    Std_Error = "Std. Error",
+    t_value = "t Value",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)",
+    P_Value = "P-Value"
+  ) %>%
+  fmt_number(columns = c(Beta, Std_Error, t_value, CI_Lower, CI_Upper, P_Value), decimals = 3) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(table.font.names = "Times New Roman")
+
+# Save the table as a high-quality image
+gtsave(sequential_table, 
+       "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/sequential_table.png", 
+       vwidth = 9000, vheight = 300)
+```
+
+The only co-variate that was found to cause a loss of significance in the relationship was Knowledge of Policy Changes (SS7). This relationship was further investigated in the subsequent fully adjusted model.
+
+***4) All Predictors (Fully Adjusted Results)***
+
+Several fully adjusted models were run to determine the effect of SS6 on overall Summary Score Accuracy. A model with just SS6 and SS7, a model with SS6 and SS7, and all other predictors that were not the 'SS' Variables, and then a test with all predictors were run.
+
+```{r}
+#Just SS6 and SS7 
+summary(lm(SummaryScore ~ SS6_plus1 + SS7_plus1, data = sacvd))  
+
+#Keeping SS7_plus1 as a predictor with all other covariates 
+summary(lm(SummaryScore ~ Age + SS6_plus1 + SS7_plus1 + Sex + HighestDegreeElse + Employment2Else + Religion3Else + Immigration.Status2Else + Cardiometabolic.DiseaseElse, data = sacvd))
+
+# Create a table for thesis with data from the LM model 
+sig_results <- data.frame(
+  Predictor = c("Knowledge of MASALA", "Female Sex"),
+  Coefficient = c(8.9522, 21.3471),
+  Std_Error = c(3.7156, 7.9787),
+  t_value = c(2.409, 2.676),
+  P_Value = c(0.0226, 0.0121)
+)
+sig_results <- sig_results %>%
+  mutate(
+    CI_Lower = Coefficient - 1.96 * Std_Error,
+    CI_Upper = Coefficient + 1.96 * Std_Error
+  )
+sig_gt <- sig_results %>%
+  gt() %>%
+  tab_header(title = "Linear Regression Results (p < 0.05): Fully Adjusted Model Without All 'SS' Predictors") %>%
+  cols_label(
+    Predictor = "Predictor",
+    Coefficient = "Beta Coefficient",
+    Std_Error = "Std. Error",
+    t_value = "t Value",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)",
+    P_Value = "P-Value"
+  ) %>%
+  fmt_number(columns = c(Coefficient, Std_Error, t_value, CI_Lower, CI_Upper, P_Value), decimals = 3) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(table.font.names = "Times New Roman")
+sig_gt
+gtsave(sig_gt, 
+       "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/linear_regression_sig_results.png", 
+       vwidth = 5000, vheight = 300)
+
+
+#Full model 
+summary(lm(SummaryScore ~ Age + SS1_plus1 + SS2_plus1  + SS3_plus1  + SS4_plus1  + SS5_plus1 + SS6_plus1 + SS7_plus1 + SS8_plus1 + SS9_plus1 + Sex + HighestDegreeElse + Employment2Else + Religion3Else + Immigration.Status2Else + Cardiometabolic.DiseaseElse, data = sacvd))
+
+#Creating the table for thesis that inputs the values from the output of the full lm model 
+estimate <- 11.04380
+std_error <- 4.45893
+t_value <- 2.477
+p_value <- 0.0214
+ci_lower <- estimate - 1.96 * std_error
+ci_upper <- estimate + 1.96 * std_error
+regression_result <- data.frame(
+  Predictor = "Knowledge of MASALA",
+  Beta_Coefficient = estimate,
+  Std_Error = std_error,
+  t_value = t_value,
+  P_Value = p_value,
+  CI_Lower = round(ci_lower, 3),
+  CI_Upper = round(ci_upper, 3)
+)
+regression_gt <- regression_result %>%
+  gt() %>%
+  tab_header(title = "Linear Regression Results (p < 0.05): Fully Adjusted Model With All 'SS' Predictors") %>%
+  cols_label(
+    Predictor = "Predictor",
+    Beta_Coefficient = "Beta Coefficient",
+    Std_Error = "Std. Error",
+    t_value = "t Value",
+    P_Value = "P-Value",
+    CI_Lower = "95% CI (Lower)",
+    CI_Upper = "95% CI (Upper)"
+  ) %>%
+  fmt_number(columns = c(Beta_Coefficient, Std_Error, t_value, P_Value, CI_Lower, CI_Upper), decimals = 3) %>%
+  tab_source_note(source_note = "Data source: SACVD (2024-2025)") %>%
+  tab_options(table.font.names = "Times New Roman")
+regression_gt
+gtsave(regression_gt, 
+       "C:/Users/RMRAVEE/Desktop/Honors Thesis Data/linear_regression_masala.png", 
+       vwidth = 4000, vheight = 200)
+```
+
+In the un-adjusted model, SS6 was a significant predictor of total accuracy. However, when SS7 was added to the model, SS6 was no longer significant. In a model including SS7 and all other co-variates (excluding other SS variables), both SS6 and Sex emerged as significant predictors. Finally, when all predictors, including all SS variables, were included in the fully adjusted model, only SS6 remained significant.
+
+These findings suggest that SS6 is a strong, independent predictor of total accuracy. The attenuation of SS7 and Sex in the fully adjusted model indicates potential shared variance or confounding that is accounted for when all predictors in the data set are considered.
